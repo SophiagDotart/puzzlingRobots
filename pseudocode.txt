@@ -24,13 +24,22 @@ sendMsg(PUSHPULL, p, id, t, r, map)
 # Functions
 decodeMsg(){                    // decode the incoming msg
   getMsg()
-  return idN, tN, rN, mapN      //map is returned but not decoded yet
+  if (t = tN){
+    bypassActivebcThenMsgIsFromARoot -> maybe have a bias that cannot be overwritten for the first x msgs exchanged to overwrite it and give it a chance to spread?? Or maybe a counter for amount of root interactions?
+    Newer one gets the priority? Or counter for how many can becom a root? The amount will be subject to testing!
+  }
+  else{
+    return idN, tN, rN, mapN      //map is returned but not decoded yet
+  }
 }    
+
 decodeIntruct(){                // decode the incoming instrct
   return ;
 }   
+
 createMap()
 updateMap()
+compareMap()
 
 msgRcv(PUSHPULL, q, t){
   decodeMsg()
@@ -56,14 +65,14 @@ instrctRcv(){                   // when a new instruction from the user comes in
   r = t                         // set the new timestamp for the root
   createMsg()
   PASSIVE = 0                   // wake up, there is work
-  ROOT = 1                      // congrats! You started a new instruction ------------------is needed? or does r suffice?
+  ROOT = 1                      // congrats! You started a new instruction ------------------is needed? or does r suffice? The code could just be overwritten when new info arrives
   ACTIVE = 1                    // now, work
 }
 
-# tb implemented
-# -- if nothing happens, termnine yourself -> bercome PASSIVE?
-# maybe better if neighbours are treated as objects? Is there a proper way to do it in C variations or python
-# add successcibility algorithm here to collition avoidance -> what happens when a busy neighbour is selected
+# tb implemented:
+  - timeout: if nothing happens, termninate yourself -> become PASSIVE
+  - maybe better if neighbours are treated as objects? Is there a proper way to do it in C variations or python
+  - add successcibility algorithm here to collition avoidance -> what happens when a busy neighbour is selected
 
 # Events
 on timeout                      // timeout here refers to the end of listening period
@@ -72,6 +81,8 @@ on timeout                      // timeout here refers to the end of listening p
   set timeout delta 
 
 on getSignal                    // to categorize the incoming signal into either a msg or an instrct
+  ACTIVE = 1
+  PASSIVE = 0
   readMsg()
   if (mode == msg) {
     msgRcv()
@@ -87,24 +98,6 @@ on getSignal                    // to categorize the incoming signal into either
 MAIN:
 While (PASSIVE == 1 & ACTIVE == 0 & ROOT == 0) { //if nothing is heard yet, you get to chill
   listen()
-}
-While (ACTIVE = 1) {
-  If (ROOTN & r < rN ) {
-    r = rN  	                  //update roots timestamp
-    updateMap()
-    createMsg()
-  }
-  Else{
-    If (t < tN ){
-      updateMap()
-      t = tN
-    }
-    Else {
-      sendMsg()
-    }
-    delay()
-    sendMsg()
-  }
 }
 
 
