@@ -13,15 +13,15 @@ timeToPassive = 50          # clock out time if the active state and update coun
 PASSIVE = 0
 ACTIVE = 1
 states = np.zeros(numNodes, dtype=int)   # 0 = passive, 1 = active, 2 = root
-inputs = np.zeros(numNodes, dtype=int)   # 0 = none, >0 = input ID
+inputs = np.zeros(numNodes, dtype=int)   # 0 = none
 ROOT = np.zeros(numNodes, dtype=bool)
 
 #----- Visualization variables
 resultAmounts = []                       # store the results to display them
 resultInputSurvival = []
 
-anyInputsEver = set()                   #obj to save all inputs ever to display
-activeInputs = set()                    # obj to save all inputs currently still represented (at least by 1 node) in the swarm 
+dictInputs = {inp: {"active": 0, "root": 0, "introduced": None, "last seen": None} for inp in range( 1, numInputs + 1)} # dict to track all inputs throughout its lifetime
+dictVanishInputs = {}
 
 #----- Input arrival time -----
 inputInputTimes = sorted(np.random.choice(range(timeSteps), size = numInputs))
@@ -34,8 +34,8 @@ def isNeigbour():                       # in hardware this is not required becau
     return np.random.rand() < (np.random.choice(8)/numNodes)
 
 def becomeRoot():
-    pRoot = expDecay(t, initRootProb, decayRate)    # calculate probability for becoming a root
-    return np.random.rand() < pRoot
+    return np.random.rand() < expDecay(t, initRootProb, decayRate)    # calculate probability for becoming a root
+
 
 #----- Simulation -----
 for t in range(timeSteps + timeToPassive):                                  # timeToPassive so that each input organically has enough time to fade
@@ -46,21 +46,28 @@ for t in range(timeSteps + timeToPassive):                                  # ti
             
             if (states[i] == 1 & (np.random.rand() < 0.05)):                #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! change this to compare timestamps in the proper code
                 inputs[i] = np.random.randint(1, numInputs + 1)
+                states[i] = ACTIVE
+                ROOT[i] = becomeRoot()
 
-            for counter in range(1, numInputs + 1):                         # This is the 3 random peer approach gpt mentioned. Change to neighbour limited one
-                activeInputs.add(counter)
-                if counter not in range(anyInputsEver):
-                    anyInputsEver.add(counter)
         becomeRoot()
         
     
 
     #----- Create Diagrams -----
-    alive_inputs = {inp for inp in activeInputs if np.any(inputs == inp)}       # Check which inputs are still represented by at least one node
     for j in range(1,numInputs + 1):                                            # 0 would mean "no input", so we start at 1
-        countPassive = np.sum((inputs == j) and (states == PASSIVE))    
-        countActive = np.sum((inputs == j) and (states == ACTIVE))     
-        countRoot = np.sum((inputs == j) and ROOT)
+        countPassive = np.sum((inputs == j) & (states == PASSIVE))    
+        countActive = np.sum((inputs == j) & (states == ACTIVE))     
+        countRoot = np.sum((inputs == j) & ROOT)
+
+        if(j-1 in dictInputs):
+            if dictInputs[j-1]["last seen"] != None and dictInputs[j]["introduced"]!= None:
+                dictVanishInputs[j] = dictInputs[j-1]["lastSeen"] - dictInputs[j]["introduced"]    # save to the array for later calculation of the vanish delay
+
+        if (countActive > 0) or (countRoot > 0):
+            dictInputs[j]["active"] = countActive
+            dictInputs[j]["root"] = countRoot
+            dictInputs[j]["introduced"] = dictInputs[j]["introduced"]
+            dictInputs[j]["last seen"] = t
         resultAmounts.append({                                                  # Store results in resultAmounts on amount of nodes in each state at each Step -> Summary graph
             'steps': t,
             'input': j,
@@ -71,21 +78,21 @@ for t in range(timeSteps + timeToPassive):                                  # ti
         resultInputSurvival.append({                                            # Store for input survival rate graph
             'steps': t,
             'input': j,
-            'introduced': int(j in activeInputs & (t == inputInputTimes(j-1))),
-            # maybe add a last seen?
-            #'last seen': max_t where input j !=0 
-            'last seen': tLastSeen
+            'introduced': dictInputs[j]["introduced"],
+            'last seen': dictInputs[j]["last seen"]
             })
-        countPassive = 0
-        countActive = 0
-        countRoot = 0
-        tLastSeen = 0
 
+#----- Calculate vanish delays -----
+vanishDelays = []
+for j in range(1, numInputs):
+    if j in dictVanishInputs and ((j + 1) in dictInputs) and (dictInputs[j +1]["introduced"] is not None):
+        vanishDelays.append(dictVanishInputs[j] - dictInputs[j + 1]["introduced"])
+avgVanishDelay = np.mean(vanishDelays) 
 
 #----- Export results -----
 with open("simulation_resultAmountOfEachStateBySteps.csv", "w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=['step', 'input', 'passive', 'active', 'root'])
-    f.write(f"Amount of each states and input at every time step\n Parameters:\n Amount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\n Initial probability for expo. decay: {initRootProb}; Decay rate: {decayRate}\n Amount of inputs: {numInputs}")
+    writer = csv.DictWriter(f, fieldnames=['steps', 'input', 'passive', 'active', 'root'])
+    f.write(f"Amount of each states and input at every time step\nParameters:\nAmount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\nInitial probability for expo. decay: {initRootProb}; Decay rate: {decayRate}\n Amount of inputs: {numInputs}")
     writer.writeheader()
     writer.writerows(resultAmounts)
 
@@ -93,8 +100,8 @@ print("Simulation complete! Results saved to simulation_resultAmountOfEachStateB
 
 with open("simulation_inputSurvivalRate.csv", "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=['time', 'input', 'active', 'root'])
-    f.write(f"Survival and Spreading rates for inputs\n Parameters:\n Amount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\n Total amount on inputs: {numInputs}") 
-    # avg survival rate after introduction of next input? avg lifespan normed to the length of time to the introduction to the next input??!!!!!!!!!!!!!!!!!!
+    f.write(f"Survival and Spreading rates for inputs\n Parameters:\n Amount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\n Total amount on inputs: {numInputs} Average circulating time of old inputs when new ones are introduced: {avgVanishDelay}") 
+    # avg survival rate after introduction of next input? avg lifespan normed to the length of time to the introduction to the next input??!!!!!!!!!!!!!!!!!!avg
     writer.writeheader()
     writer.writerows(resultInputSurvival)
 
