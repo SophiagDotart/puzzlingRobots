@@ -39,35 +39,48 @@ def becomeRoot():
 
 #----- Simulation -----
 for t in range(timeSteps + timeToPassive):                                  # timeToPassive so that each input organically has enough time to fade
+    for idx, intro_time in enumerate(inputInputTimes, start=1):
+        if t == intro_time:
+            target = np.random.randint(0, numNodes)
+            inputs[target] = idx
+            states[target] = ACTIVE
+            ROOT[target] = becomeRoot()
+            dictInputs[idx]["introduced"] = t
+    
     for i in range(numNodes):
-        if (isNeigbour() == 1):
+        if (isNeigbour()):
             if (inputs[i] == 0):
                 inputs[i] = np.random.randint(1, int(numInputs))            # Init new random input arrival times if it has not been done yet
             
-            if (states[i] == 1 & (np.random.rand() < 0.05)):                #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! change this to compare timestamps in the proper code
-                inputs[i] = np.random.randint(1, numInputs + 1)
-                states[i] = ACTIVE
+            if isNeigbour() and inputs[i] != 0:
                 ROOT[i] = becomeRoot()
+                if (np.random.rand() < 0.05):                #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! change this to compare timestamps in the proper code
+                    inputs[i] = np.random.randint(1, numInputs + 1)
+                    states[i] = ACTIVE
 
         becomeRoot()
         
     
+    #----- Calculate vanish delays -----
+    vanishDelays = []
+    for j in range(1, numInputs):
+        if j in dictVanishInputs and ((j + 1) in dictInputs) and (dictInputs[j +1]["introduced"] is not None):
+            vanishDelays.append(dictVanishInputs[j] - dictInputs[j + 1]["introduced"])
+    avgVanishDelay = np.mean(vanishDelays) 
 
     #----- Create Diagrams -----
     for j in range(1,numInputs + 1):                                            # 0 would mean "no input", so we start at 1
         countPassive = np.sum((inputs == j) & (states == PASSIVE))    
         countActive = np.sum((inputs == j) & (states == ACTIVE))     
         countRoot = np.sum((inputs == j) & ROOT)
+            
 
-        if(j-1 in dictInputs):
-            if dictInputs[j-1]["last seen"] != None and dictInputs[j]["introduced"]!= None:
-                dictVanishInputs[j] = dictInputs[j-1]["lastSeen"] - dictInputs[j]["introduced"]    # save to the array for later calculation of the vanish delay
-
-        if (countActive > 0) or (countRoot > 0):
+        if ((countActive + countRoot) > 0):
             dictInputs[j]["active"] = countActive
             dictInputs[j]["root"] = countRoot
-            dictInputs[j]["introduced"] = dictInputs[j]["introduced"]
             dictInputs[j]["last seen"] = t
+        elif j > 1 and dictInputs[j-1]["last seen"] is not None:
+                dictVanishInputs[j] = t                                         # store vanish time
         resultAmounts.append({                                                  # Store results in resultAmounts on amount of nodes in each state at each Step -> Summary graph
             'steps': t,
             'input': j,
@@ -82,27 +95,33 @@ for t in range(timeSteps + timeToPassive):                                  # ti
             'last seen': dictInputs[j]["last seen"]
             })
 
-#----- Calculate vanish delays -----
-vanishDelays = []
-for j in range(1, numInputs):
-    if j in dictVanishInputs and ((j + 1) in dictInputs) and (dictInputs[j +1]["introduced"] is not None):
-        vanishDelays.append(dictVanishInputs[j] - dictInputs[j + 1]["introduced"])
-avgVanishDelay = np.mean(vanishDelays) 
+
 
 #----- Export results -----
 with open("simulation_resultAmountOfEachStateBySteps.csv", "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=['steps', 'input', 'passive', 'active', 'root'])
-    f.write(f"Amount of each states and input at every time step\nParameters:\nAmount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\nInitial probability for expo. decay: {initRootProb}; Decay rate: {decayRate}\n Amount of inputs: {numInputs}")
+    f.write(
+        f"Amount of each states and input at every time step\nParameters:\n"
+        f"Amount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}; Amount of inputs: {numInputs}\n"
+        f"Initial probability for expo. decay: {initRootProb}; Decay rate: {decayRate}\n")
     writer.writeheader()
     writer.writerows(resultAmounts)
 
 print("Simulation complete! Results saved to simulation_resultAmountOfEachStateBySteps.csv")
 
 with open("simulation_inputSurvivalRate.csv", "w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=['time', 'input', 'active', 'root'])
-    f.write(f"Survival and Spreading rates for inputs\n Parameters:\n Amount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\n Total amount on inputs: {numInputs} Average circulating time of old inputs when new ones are introduced: {avgVanishDelay}") 
-    # avg survival rate after introduction of next input? avg lifespan normed to the length of time to the introduction to the next input??!!!!!!!!!!!!!!!!!!avg
+    writer = csv.DictWriter(f, fieldnames=['time', 'input', 'active', 'root'], extrasaction='ignore')
+    f.write(
+        f"Survival and Spreading rates for inputs\n Parameters:\n"
+        f"Amount of nodes: {numNodes}; Total amount of time/ steps: {timeSteps}\n Total amount on inputs: {numInputs}"
+        f"Average circulating time of old inputs when new ones are introduced: {avgVanishDelay}") 
     writer.writeheader()
-    writer.writerows(resultInputSurvival)
+    for j in range(1, numInputs + 1):
+        writer.writerow({
+            "input": j,
+            "introduced": dictInputs[j]["introduced"],
+            "last_seen": dictInputs[j]["last seen"],
+            "vanish_delay": dictVanishInputs.get(j, None)
+        })
 
 print(f"Simulation 2 complete! Results saved to simulation_inputSurvivalRate.csv")
