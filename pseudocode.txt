@@ -1,3 +1,5 @@
+Way outdated!
+
 Complete pseudocode puzzling robots:
 # state: passive - listen if sth is received
 # state: active - decide whether to update mode or even instructions and forward the result of said decision 

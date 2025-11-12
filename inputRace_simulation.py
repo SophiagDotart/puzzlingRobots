@@ -2,11 +2,11 @@ import numpy as np
 import csv
 
 #----- Parameters -----
-numNodes = 100              #amount of robots = nodes that make up the swarm
-timeSteps = 100             #amount of times each robot does a step = calculate its state and map 
-numInputs = 5               #amount of inputs = games to be introduced in the swarm
-initRootProb = 0.8          #initial value of probability for determining whether a node becomes a root
-decayRate = 0.05            #decay rate for the exponential function
+numNodes = 100              # amount of robots = nodes that make up the swarm
+timeSteps = 100             # amount of times each robot does a step = calculate its state and map 
+numInputs = 5               # amount of inputs = games to be introduced in the swarm
+initRootProb = 0.8          # initial value of probability for determining whether a node becomes a root
+decayRate = 0.05            # decay rate for the exponential function
 timeToPassive = 50          # clock out time if the active state and update count has not changed for too long
 
 #----- States variables -----
@@ -28,7 +28,7 @@ inputInputTimes = sorted(np.random.choice(range(timeSteps), size = numInputs))
 
 #----- Additional functions -----
 def expDecay(t, p0, dec):               # general exponential decay function 
-    return p0 * np.power((1- dec), t)    # or continous p0b*np.e^(-dec*t); t = time step that passed 
+    return p0 * np.power((1- dec), t)    # or continuous p0b*np.e^(-dec*t); t = time step that passed 
 
 def isNeigbour():                       # in hardware this is not required because each robot will not receive any information from non neighbours, so here is just an approx
     return np.random.rand() < (np.random.choice(8)/numNodes)
