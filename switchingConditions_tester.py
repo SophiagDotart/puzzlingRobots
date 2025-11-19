@@ -1,5 +1,11 @@
+# ------ SCRIPT ROBOT LOGIC -----
+# Script details the behaviour of the node -> root, polite gossip, busy logic and how to handle messages
+# Any functions that explicitly deal with checking or comparing or creating maps in "mapFunctions"
+# All direct hardware functions in different scripts
+
 import numpy as np
 import random
+# import time
 
 #----- Parameters -----
 PASSIVE = 0
@@ -39,7 +45,8 @@ class Node:
         self.rcvMsgs = 0
 
     #----- Auxiliary functions -----
-    def becomeRoot(self):          # calculate if node will become a root
+    def becomeRoot(self):          
+        # calculate if node will become a root
         return np.random.rand() < expDecay(self.t, initRootProb, decayRate)  
 
     def timeout(self):
@@ -47,8 +54,20 @@ class Node:
         if self.lastUpdate > timeToPassive:
             self.state = PASSIVE
             self.root = False
+            self.delayIfBusy = 0
         print(f"[UPDATE] Node {self.id} is now passive again bc timeout")
+    
+    def politeGossipWait(self, receiver, receiverState):
+        if receiverState:
+            self.delayIfBusy = min(self.delayIfBusy +1, maxDelayIfBusy) + random.randint(0, 2)
+            print(f"[UPDATE] receiving Node {receiver} is busy. Node {self.id} will retry later")
+            if self.delayIfBusy >= maxDelayIfBusy:      # resend msg when polite gossip delay is ready to retry
+                print(f"[SEND] {self.id} has waited politely and will now resend the msg to {receiver}")
+                self.delayIfBusy = 0
+            elif self.delayIfBusy > 0:                  # wait before interrupting again
+                return
 
+    #----- Sending functions -----
     def sendMsg(self, receiver):
         msg = {"sender": self.id, "t": self.t, "root": self.root, "map": self.map, "mode": self.mode, "reply": False, "source": self.source, "busy": self.busy}
         self.sentMsgs += 1
@@ -60,22 +79,10 @@ class Node:
 
     def sendBusyReply(self, receiver):
         msg = {"sender": self.id, "t": self.t, "reply": True, "busy": self.busy}
-        print(f"[BUSY] Node {msg['sender']} tried gossiping with busy node {self.id}")
+        print(f"[BUSY] Node {receiver} tried gossiping with busy node {self.id}")
         receiver.handleSignal(msg)
 
-    #----- Map functions ----- maybe outsource to the map functions script???????
-    def createMap(self, receiverMap):
-        return receiverMap
-
-    def compareMap(self, receiver, receiverMap):
-        print(f"[CMP] Node {receiver} map {receiverMap} vs Node {self.id} map {self.map}")
-        # compare every single position of the map bc all other things failed
-
-    def overwriteMap(self, receiverMap, time):
-        self.map = receiverMap
-        self.t = time
-
-    #----- Signal handling functions -----
+    #----- "How to manage msg way" functions -----
     def instructRcv(self, msg):
         self.state = ACTIVE
         self.root = True
@@ -84,7 +91,7 @@ class Node:
         self.t += 1
         print(f"[UPDATE] Node {self.id} received instructions from card | mode = {self.mode}")
 
-    def msgRcv(self, msg):
+    def msgRcv(self, msg, receiver):
         if self.busy:
             self.sendBusyReply(msg['sender'])
             self.msgQueue.append(msg)
@@ -113,63 +120,57 @@ class Node:
             self.root = self.becomeRoot() 
             self.busy = False
             self.delayIfBusy = 0
+        receiver.handleSignal(msg)
         self.lastUpdate = self.t
         self.t += 1
         if self.msgQueue and not self.busy:
             nextMsg = self.msgQueue.pop(0)
             print(f"[QUEUE] Node {self.id} now processing Node {nextMsg['sender']} msg")
             self.msgRcv(nextMsg)
-
+            
     def handleSignal(self, msg):
-        if msg["busy"]:
-            self.delayIfBusy = min(self.delayIfBusy +1, maxDelayIfBusy)
-            print(f"[UPDATE] receiving Node {msg['sender']} is busy. Node {self.id} will retry later")
-            if self.delayIfBusy > 0:    # polite gossip -> wait before interrupting again
-                return
         if msg["source"] == 0:
-            self.instructRcv(msg)       # the received msg comes from user through a card
+            self.instructRcv(msg)                       # the received msg comes from user through a card
         else:
-            self.msgRcv(msg)            # the received msg sent comes from another robot
+            self.msgRcv(msg, msg["sender"])             # the received msg sent comes from another robot
 
 
-# if __name__ == "__main__":              # Testing function it switches
-#     A = Node(1)
-#     B = Node(2)
-#     C = Node(3)
-#     D = Node(4)
-#     E = Node(5)
+if __name__ == "__main__":                              # Testing function "it switches"
+    A = Node(1)
+    B = Node(2)
+    C = Node(3)
+    D = Node(4)
+    E = Node(5)
 
-#     A.sendMsg(B)
-#     A.sendMsg(E)
-#     B.sendMsg(C)
-#     B.sendMsg(D)
-#     C.sendMsg(A)
-#     D.sendMsg(B)
+    A.sendMsg(B)
+    A.sendMsg(E)
+    B.sendMsg(C)
+    B.sendMsg(D)
+    C.sendMsg(A)
+    D.sendMsg(B)
 
-#     print(f"Final states: ")
-#     for node in [A, E]:                 # print all stats at the end to survey each nodes progress
-#         print(f"Node = {node.id}, state = {node.state}, root = {node.root}, mode = {node.mode}, t = {node.t}, sent msgs = {node.sentMsgs}, rcv msgs = {node.rcvMsgs}")
+    print(f"Final states: ")
+    for node in [A, B, C, D, E]:                 # print all stats at the end to survey each nodes progress
+        print(f"Node = {node.id}, state = {node.state}, root = {node.root}, mode = {node.mode}, t = {node.t}, sent msgs = {node.sentMsgs}, rcv msgs = {node.rcvMsgs}")
 
-if __name__ == "__main__":                  # Testing function does the polite gossip delay stabilize communication functions and minimize interactions?
-    # create swarm
-    nodes = {i: Node(i) for i in range(1, 6)}
-    A, B, C, D, E = nodes.values()
+# if __name__ == "__main__":                  # Testing function "does the polite gossip delay stabilize communication functions and minimize interactions?"
+#     # create swarm
+#     nodes = {i: Node(i) for i in range(1, 6)}
+#     A, B, C, D, E = nodes.values()
 
-    # simulate steps
-    print("\n--- Simulation start ---\n")
-    for step in range(10):
-        print(f"\n=== Step {step} ===")
-        # decay politeness delay gradually
-        for n in nodes.values():
-            n.decayDelay()
+#     # simulate steps
+#     print("\n--- Simulation start ---\n")
+#     for step in range(10):
+#         print(f"\n=== Step {step} ===")
+#         # decay politeness delay gradually
+#         for n in nodes.values():
+#             n.decayDelay()
 
-        # simple random communication pattern
-        sender, receiver = random.sample(list(nodes.values()), 2)
-        sender.sendMsg(receiver)
+#         # simple random communication pattern
+#         sender, receiver = random.sample(list(nodes.values()), 2)
+#         sender.sendMsg(receiver)
 
-        time.sleep(0.5)  # visual clarity for logs
-
-    print("\n--- Final stats ---")
-    for n in nodes.values():
-        print(f"Node {n.id}: sent={n.sentMsgs}, received={n.rcvMsgs}, delay={n.delayIfBusy:.1f}, queue={len(n.msgQueue)}")
+#     print("\n--- Final stats ---")
+#     for n in nodes.values():
+#         print(f"Node {n.id}: sent={n.sentMsgs}, received={n.rcvMsgs}, delay={n.delayIfBusy:.1f}, queue={len(n.msgQueue)}")
                 

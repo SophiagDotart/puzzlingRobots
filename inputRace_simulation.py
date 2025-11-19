@@ -36,7 +36,6 @@ def isNeigbour():                       # in hardware this is not required becau
 def becomeRoot():
     return np.random.rand() < expDecay(t, initRootProb, decayRate)    # calculate probability for becoming a root
 
-
 #----- Simulation -----
 for t in range(timeSteps + timeToPassive):                                  # timeToPassive so that each input organically has enough time to fade
     for idx, intro_time in enumerate(inputInputTimes, start=1):
@@ -58,8 +57,7 @@ for t in range(timeSteps + timeToPassive):                                  # ti
                     inputs[i] = np.random.randint(1, numInputs + 1)
                     states[i] = ACTIVE
 
-        becomeRoot()
-        
+        becomeRoot()     
     
     #----- Calculate vanish delays -----
     vanishDelays = []
@@ -94,8 +92,6 @@ for t in range(timeSteps + timeToPassive):                                  # ti
             'introduced': dictInputs[j]["introduced"],
             'last seen': dictInputs[j]["last seen"]
             })
-
-
 
 #----- Export results -----
 with open("simulation_resultAmountOfEachStateBySteps.csv", "w", newline="") as f:
