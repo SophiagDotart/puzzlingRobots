@@ -31,6 +31,7 @@ class Node:
         self.root = False
         self.t = 0
         self.map = {}               # dictionary to store positions on map
+        self.goalMap = []
         # For communications and priority
         self.reply = False
         self.mode = None
