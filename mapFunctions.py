@@ -54,10 +54,11 @@ class MapCompression:
                 dictMap[(minx + i, miny + j)] = self.byteToTile.get(tile, "?")
         return dictMap
     
-    def printPerLine(self):
+    def printCompressedMap(self):
         if not self.compMap:
             print("[ERROR] Map is empty")
             return
+        arr = self.compMap
         minx, miny, width, height = self.margins
         for j in range(height):
             row = ""
@@ -82,12 +83,6 @@ def printMap(self):
 
 def getGoalMap(self, receiverMap):
     self.goalMap = dict(receiverMap)
-
-def getOwnPos(self, msg):
-    # Find own position in relation to the contacting neighbour
-    x = 0           # position in horizontal direction
-    y = 0           # position in vertical direction
-    return x, y
 
 def compareMap(self, receiver, receiverMap):
     # compare every single position of the map 
