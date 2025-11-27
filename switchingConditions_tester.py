@@ -6,6 +6,8 @@
 import numpy as np
 import random
 # import time
+import mapFunctions as mapFunc
+import positioningAlgorithm as posGet
 
 #----- Parameters -----
 PASSIVE = 0
@@ -30,7 +32,7 @@ class Node:
         self.state = PASSIVE
         self.root = False
         self.t = 0
-        self.map = {}               # dictionary to store positions on map
+        self.map = []               
         self.goalMap = []
         # For communications and priority
         self.reply = False
@@ -82,6 +84,10 @@ class Node:
         msg = {"sender": self.id, "t": self.t, "reply": True, "busy": self.busy}
         print(f"[BUSY] Node {receiver} tried gossiping with busy node {self.id}")
         receiver.handleSignal(msg)
+
+    def sendErrorReply(self, receiver):
+        msg = {"sender": self.id, "t": self.t, "reply": True}
+        print(f"[ERROR] Node {receiver} is in an invalid positioned")
 
     #----- "How to manage msg way" functions -----
     def instructRcv(self, msg):

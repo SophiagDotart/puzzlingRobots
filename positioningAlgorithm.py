@@ -2,6 +2,9 @@
 # Handles any functions that deal with the position of the node within the map
 # required information from msg: senderPosition, senderModule, senderID, root,
 
+import mapFunctions as mapFunc
+import switchingConditions_tester as switchCon
+
 orientation = {
     1: (-1, 0),     # left
     2: (0, +1),     # up
