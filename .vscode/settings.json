@@ -1,8 +1,11 @@
 {
     "cSpell.ignoreWords": [
+        "DONERCV",
+        "DONESND",
         "maxx",
         "maxy",
         "miny",
-        "neighbours"
+        "neighbours",
+        "rfid"
     ]
 }

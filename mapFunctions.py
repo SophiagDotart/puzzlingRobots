@@ -9,6 +9,8 @@ import positioningAlgorithm as posGet
 class MapCompression:
     # contains all functions related to the compression of the map (dictionary to bytearray and back)
 
+    MAX_MAP_SIZE = 1024
+
     tileToByte = {
         # tile lookup table
         "-": 0,         # empty tile, default
