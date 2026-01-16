@@ -1,77 +1,74 @@
-# import controlhardware_testing.c as hw
+# Script to create the actual message and convert it to a package that can be sent through RFID| 16bit message channel
+
+# For later implementation:
+#... bigger senderId & versioned header so the swarm can have more than 8 nodes
+#... implement proper checksum
+#... compress map fragments so it can can have more than 64 spaces
+
+# import controlhardware_testing.c as hw 
 
 class Message:
-    def __init__(self, senderID, receiverID, 
-                 senderState, senderRootStatus, 
+    def __init__(self, senderID, receiverID, senderRootFlag, 
                  senderMap, senderMode, senderSource, 
-                 senderBusyStatus, senderRFIDOrientation):
+                 senderBusyFlag, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag):
         self.senderID = senderID
-        self.receiverID = receiverID
-        # fields to be send as 16bits each
-        self.state = senderState
-        self.root = senderRootStatus
-        self.map = senderMap
-        self.mode = senderMode      # reply?
-        self.source = senderSource
-        self.busy = senderBusyStatus
+        # flags
+        self.REPLY = senderReplyFlag
+        self.UPDATE = senderUpdateFlag
+        self.BUSY = senderBusyFlag
+        self.ROOT = senderRootFlag
+        self.DONE = senderDoneFlag
+        # payload
+        self.mode = senderMode
+        self.timestamp = senderTimestamp
         self.orientation = senderRFIDOrientation
-
-    def serialize(self) -> bytearray:
-        # extracts upper byte and then the lower one of the int to be able to send data through rfid
-        buf = bytearray()
-
-        # explain this further in thesis with bit logic? extract upper bit, then lower bit
-        # -> CHANGE TO DIFFERENT LENGTHS ACCORDING TO MAP TRANSFER:PY!!!!!!!!!"!!!!!!!!!!"
-        for field in (
-            self.senderID,
-            self.state, self.root, self.map,
-            self.mode, self.source, self.busy,
-            self.orientation):
-            buf.append((field >> 8) & 0xFF)
-            buf.append(field & 0xFF)
-
-        payload_length = (len(buf) - 4)
-        buf.append(payload_length)
-
-        checksum = sum(buf) & 0xFF      # error recognition help
-        buf.append(checksum)
-
-        return buf
-    
+        self.map = senderMap
+        
+        
     @staticmethod
-    def deserialize(buf: bytearray):
-        # check for correctness
-        if len(buf) < 6:
-            print(f"[ERROR] The message is too short")
-
-        checksum = buf[-1]
-        calc = sum(buf[:-1]) & 0xFF
-        if checksum != calc:
-            print(f"[ERROR] Checksum mismatch")
-
-        payloadLength = buf[-2]
-        if payloadLength != len(buf) - 6:
-            print(f"[ERROR] The message is not the right length")
-
-        # decode the message
-        senderID = (buf[0] << 8) | buf[1]
-        receiverID = (buf[2] << 8) | buf[3]
-
-        fields = []
-        idx = 4
-        end = idx + payloadLength
-        while idx < end:
-            val = (buf[idx] << 8) | buf[idx+1]
-            fields.append(val)
-            idx += 2
-
-        return Message(senderID, receiverID)
-    
-    def send(self, msgContent):
-        #hw_sendMsg(self.serialize(msgContent))
-        pass
+    def setBit(word: int, bitPos: int, value: int):
+        value = 1 if value else 0   # make sure the value is definetely 100% 1 or 0
+        return word | (1 << bitPos) if value else word & ~(1 << bitPos)
+        # | = OR bitwise ;;; use it bc sinle bits can not be assigned, only bytes can be assigned. So, to change a single bit we can do that with OR. Add might lead to errors bc of the carry flag. Using OR is called "mask"
 
     @staticmethod
-    def receive(rawMsg):
-        return Message.deserialize(rawMsg)
-
+    def setSeveralBit(word: int, startBit: int, width: int, value: int) -> int:
+        mask = ((1 << width) - 1) << startBit
+        value = (value & ((1 << width) - 1) << startBit
+        return (word & ~mask) | value
+        
+    @staticmethod
+    def calcParity(value: int) -> int:
+        return bin(value).count("1") %4     # count the ones in the bitwise written msg and use only the last 2 numbers
+        
+    def createInitMsg(self):  
+        msg = 0
+        msg = Message.setSeveralBit(msg, 13, 3, self.header)
+        msg = Message.setBit(msg, 10, self.REPLY) 
+        msg = Message.setBit(msg, 9, self.UPDATE)
+        msg = Message.setBit(msg, 8, self.BUSY)
+        msg = Message.setSeveralBit(msg, 7, 3, self.mode)
+        msg = Message.setBit(msg, 3, self.ROOT)
+        msg = Message.setSeveralBit(msg, 2, 3, self.timestamp)
+        return msg
+            
+    def createFollowUpMsg(self) -> int:
+        msg = 0
+        msg = Message.setSeveralBit(msg, 13, 3, self.header)
+        msg = Message.setSeveralBit(msg, 11, 2, self.orientation)
+        msg = Message.setSeveralBit(msg, 9, 2, Message.calcParity(msg))
+        msg = Message.setBit(msg, 8, self.DONE)
+        msg = Message.setSeveralBit(msg, 7, 8, self.map)
+        return msg
+        
+    @staticmethod    
+    def serializeMsg(msg:int) -> bytearray:
+        return bytearray([
+            (word >> 8) & 0xFF,
+            word & 0xFF
+        ])
+        # use as message = createMsg then rfid_payload = Message.serializeMsg
+        
+    @staticmethod
+    def deserializeMsg(msgInByteArray: bytearray) -> int:
+        return msg
