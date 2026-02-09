@@ -1,15 +1,16 @@
 #----- Map functions ----- 
-# Handles any functions that deal with the contents of the map
+# Handles any functions that deal with the contents of the map -> create, (de)compress, change maps including figuring out where the user is on the map
 # Switching logic in script "switching conditions"
 # Hardware functions in separate script
 
-import switchingConditions_tester as switchCon
-import positioningAlgorithm as posGet
+import switchingConditions_tester.py as switchCon
+#scripts not imported: messageBuild, controlHardware
+import errorHandling.py as err
 
-class MapCompression:
-    # contains all functions related to the compression of the map (dictionary to bytearray and back)
+class Map:
+    # functions related to the compression of the map (dictionary to bytearray and back)
 
-    MAX_MAP_SIZE = 1024
+    MAX_MAP_SIZE = 2^6
 
     tileToByte = {
         # tile lookup table
@@ -22,19 +23,51 @@ class MapCompression:
     }
 
     byteToTile = {v: k for k, v in tileToByte.items()}
+    
+    orientation = {
+        1: (-1, 0),     # left
+        2: (0, +1),     # up
+        3: (+1, 0),     # right
+        4: (0, -1)      # down
+    }
 
     def __init__(self):
         self.compMap = bytearray()  # compressed map for storage
         self.compGoalMap = bytearray()
         self.margins = (0, 0, 0, 0) # min(x), min(y), width, height
         self.goalMargins = (0, 0, 0, 0)
+        
+    #----- Create and delete map -----
+    def createMap():
+        self.compMap = bytearray()
+        self.margins = (0, 0, 0, 0)
+        
+    #def deleteMap():    
+        
+    #----- Find and update own position in map -----
+    def getOwnPos(self, msg):
+        # when the node first enters the swarm, it gets assigned a coordinate by its neighbour
+        senderX, senderY = msg["senderPos"]
+        moduleNumber = msg["senderModule"]
+        dx, dy = orientation[moduleNumber]      # it is calculated "Im sending on module 1" and "Im receiving on module 3"
+        return senderX + dx, senderY + dy       # add the difference to the neighbour's position
 
+    def overwritePos(self, msg):
+        self.x, self.y = getOwnPos(msg)
+
+    def updatePosition(self, msg):
+        # root status do not get overwritten
+        if self.root:
+            print(f"[UPDATE] This node is a root, it will keep its position")
+            return
+        overwritePos(msg)
+        senderX, senderY = msg["senderPos"]
+        print(f"[UPDATE] Node {self.id} updated it's position to ({senderX}, {senderY})")
+        
     #----- (De)compress the maps -----
     def compressMapToByteArray(self, ogMap: dict):      # only the cards have a dict
         if not ogMap:
-            print(f"[ERROR] Node {self.id} has no map yet")
-            self.compMap = bytearray()
-            self.margins = (0, 0, 0, 0)
+            err.emptyMap()
             return
         
         xs = [x for (x, y) in ogMap.keys()]
@@ -63,9 +96,9 @@ class MapCompression:
     
     def printCompressedMap(self):
         if not self.compMap:
-            print("[ERROR] Map is empty")
+            err.emptyMap()
             return
-        arr = self.compMap
+        arr = self.compMap()
         minx, miny, width, height = self.margins
         for j in range(height):
             row = ""
@@ -77,7 +110,7 @@ class MapCompression:
 
     def printDictMap(self):
         if not self.map:
-            print(f"[ERROR] Node {self.id} has no map yet")
+            err.emptyMap()
             return
         x = [pos[0] for pos in self.map.keys()]
         y = [pos[1] for pos in self.map.keys()]
@@ -141,7 +174,7 @@ class MapCompression:
     def attachmentAttempt(self, msg):      
         # to check if the node is not being attached in a forbidden position
         if not hasattr(self, "goalMap") or not self.goalMap:
-            print(f"[ERROR] There is no game/ goalMap defined yet")
+            err.emptygoalMap()
             return False
         newX, newY = self.getOwnPos(msg)
         allowedPos = {"+", "■"}
@@ -152,10 +185,7 @@ class MapCompression:
             # start the whole map cycle
             return True
         else:
-            print(f"[ERROR] This is not a valid position for this game")
-            switchCon.sendErrorReply(msg["id"])
-            # maybe send a reply specifying why this attachment attempt was shut down?
-            # send signal to user that this action is incorrect
+            err.attachmentPosForbidden(pos(x), pos(y))
             return False
 
     # def findMistakesInMap():        # to create a map where all positions that do not correspond with the goalMap; required?
