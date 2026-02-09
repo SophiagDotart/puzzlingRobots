@@ -35,7 +35,7 @@ class Node:
         self.goalMap = []
         # For communications and priority
         self.REPLY = 0
-        self.mode = 0bx000
+        self.mode = 0
         self.SOURCE = 1             # if it were a card this would be 0
         self.BUSY = 0
         self.msgQueue = []          # list of rcv messages -> might have to limit of stored amount later
@@ -72,25 +72,25 @@ class Node:
             return
 
     def printData(self):
-        print("Robot "{self.nodeId}" is at position" {mapFunc.getCurrentPos()})
-        print("Current state: "{self.STATE})
-        print("Current root: "{self.ROOT})
-        print("Current timestamp: "{self.t})
-        print("Current internal map: "{mapFunc.printCompressedMap(self.map)})
-        print("Currently playing game: " {self.mode})
-        print("Current goal/ mode map: "{mapFunc.printCompressedMap(self.goalMap)})
+        print(f"Robot "{self.nodeId}" is at position" {mapFunc.getCurrentPos()})
+        print(f"Current state: "{self.STATE})
+        print(f"Current root: "{self.ROOT})
+        print(f"Current timestamp: "{self.t})
+        print(f"Current internal map: "{mapFunc.printCompressedMap(self.map)})
+        print(f"Currently playing game: " {self.mode})
+        print(f"Current goal/ mode map: "{mapFunc.printCompressedMap(self.goalMap)})
         #not printing waiting queue yet
-        print("Statistical data")
-        print("Amount of msg rcv: "{self.rcvMsgs}) 
-        print("Amount of sent msgs: "{sentMsgs})
-        print("Timestamp of the last follow-up msg is: "{lastUpdate})
+        print(f"Statistical data")
+        print(f"Amount of msg rcv: "{self.rcvMsgs}) 
+        print(f"Amount of sent msgs: "{sentMsgs})
+        print(f"Timestamp of the last follow-up msg is: "{lastUpdate})
 
     #----- "How to manage msg way" functions -----
     def msgDetected(self, msg):
         if (msgBuild.getMsgSourceType() == 0):      # msg comes from another robot
-            msgRcv(msg)
+            self.msgRcv(msg)
         elif (msgBuild.getMsgSourceType() == 1):    # msg comes from a user
-            instructRcv(msg)
+            self.instructRcv(msg)
         else:
             err.messageSourceIncorrect()
     
@@ -104,29 +104,32 @@ class Node:
 
     def msgRcv(self, msg, receiver):
         if self.BUSY:
+            print(f"[ERROR] Receiver is busy. Try again later")
             msgBuild.replyMsg_busy()
             self.msgQueue.append(msg)
         else:
             self.BUSY = 1
             self.rcvMsgs += 1 
-            print(f"[RECV] Node {self.id} received from Node {msg['sender']} | time = {msg['t']} | root = {msg['root']} | mode = {msg['mode']}")
-            # check if either node root THEN go for the msg that is newer THEN check if they have same mode
-            if self.ROOT == 1:
-                pass
-            elif msgBuild.getROOT() == 1:
-                self.overwriteMap(msgBuild.getMap()), msgBuild.getTimestep())
-                print(f"Node {self.id} copied Node {msgBuild.getSenderId()} it is a ROOT}")
+            if(self.mode != msgBuild.getMode()):
+                msgBuild.replyMsg_diffMode()
+                print(f"[ERROR] Receiver has a different mode")
             else:
-                if msgBuild.getTimestep() > self.t:
+                print(f"[UPDATE] Node {self.id} received from Node {msg['sender']}")
+                # check if either node root THEN go for the msg that is newer THEN check if they have same mode
+                if self.ROOT == 1:
+                    pass                                #what is meant is restart the process !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                elif msgBuild.getROOT() == 1:
                     self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
-                    print(f"Node {self.id} copied Node {msgBuild.getSenderId()} bc newer data")
-                elif msgBuild.getTimestep() < self.t:
-                    self.sendMsg(msgBuild.getSenderId())
+                    print(f"[UPDATE] Node {self.id} copied Node {msgBuild.getSenderId()} it is a ROOT")
                 else:
-                    if self.mode == msgBuild.getMode():
-                        self.compareMap(msgBuild.getSenderId(), msgBuild.getMap())
+                    if msgBuild.getTimestep() > self.t:
+                        self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
+                        print(f"[UPDATE] Node {self.id} copied Node {msgBuild.getSenderId()} bc newer data")
+                    elif msgBuild.getTimestep() < self.t:
+                        print(f"[ERROR] Sender's timestamp is lower than mine")
+                        self.sendMsg(msgBuild.getSenderId())
                     else:
-                        print(f"Node {self.id} and Node {msgBuild.getSenderId()} have same time = {msgBuild.getTimestep()} so no exchange")
+                        print(f"[UPDATE] Communicating nodes have the same timestamps, so no exchange")
             self.STATE = 1              
             self.ROOT = self.becomeRoot() 
             self.BUSY = 0

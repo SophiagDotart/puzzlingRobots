@@ -48,7 +48,7 @@ class Message:
     @staticmethod
     def setSeveralBit(word: int, startBit: int, width: int, value: int) -> int:
         mask = ((1 << width) - 1) << startBit
-        value = (value & ((1 << width) - 1) << startBit
+        value = value & ((1 << width) - 1) << startBit
         return (word & ~mask) | value
         
     @staticmethod
@@ -65,7 +65,7 @@ class Message:
         
     def createInitMsg(self):  
         msg = 0
-        msg = Message.setSeveralBit(msg, 13, 3, 0bx001) 
+        msg = Message.setSeveralBit(msg, 13, 3, 1) 
         msg = Message.setBit(msg, 10, self.REPLY) 
         msg = Message.setBit(msg, 9, self.UPDATE)
         msg = Message.setBit(msg, 8, self.BUSY)
@@ -77,7 +77,7 @@ class Message:
             
     def createFollowUpMsg(self):
         msg = 0
-        msg = Message.setSeveralBit(msg, 13, 3, 0bx010)
+        msg = Message.setSeveralBit(msg, 13, 3, 2)
         msg = Message.setSeveralBit(msg, 11, 2, self.orientation)
         msg = Message.setBit(msg, 8, self.DONE)
         msg = Message.setSeveralBit(msg, 7, 8, self.map)
@@ -87,7 +87,7 @@ class Message:
         
     def createErrorMsg(self):
         msg = 0 
-        msg = Message.setSeveralBit(msg, 13, 3, 0bx100)
+        msg = Message.setSeveralBit(msg, 13, 3, 4)
         msg = Message.setSeveralBit(msg, 8, 5, self.scriptCode)  
         msg = Message.setSeveralBit(msg, 5, 3, self.errorCode)
         msg = Message.setSeveralBit(msg, 0, 5, 0)  #empty
@@ -97,7 +97,12 @@ class Message:
         self.REPLY = 1
         self.BUSY = 1
         hw.sendMsg(self.serializeMsg(self.createInitMsg()))
-                
+
+    def replyMsg_diffMode(self):
+        self.REPLY = 1
+        self.errorCode = 1 
+        hw.sendMsg(self.serializeMsg(self.createErrorMsg()))     
+
     @staticmethod    
     def serializeMsg(msg:int) -> bytearray:
         return bytearray([
@@ -116,7 +121,7 @@ class Message:
         #read header
         header = Message.getSeveralBit(word, 13, 3)
         
-        if (header == 001):             # INIT msg
+        if (header == 1):             # INIT msg
             senderID = self.getSeveralBit(word, 10, 3)
             REPLY = self.getBit(word, 7)
             UPDATE = self.getBit(word, 6)
@@ -124,7 +129,7 @@ class Message:
             mode = self.getSeveralBit(word, 4, 3)
             ROOT = self.getBit(word, 3)
             timestamp = self.getSeveralBit(word, 2, 3)
-        else if (header == 010):        # FOLLOWUP msg
+        elif (header == 2):        # FOLLOWUP msg
             orientation = self.getSeveralBit(word, 11, 2)
             parity = self.getSeveralBit(word, 9, 2)
             DONE = self.getBit(word, 8)
@@ -134,7 +139,7 @@ class Message:
             parityCalc = self.calcParity(word)
             if not (parity == paritycalc):
                 err.parityCheckIncorrect()
-        else if (header == 100):        # ERROR msg
+        elif (header == 4):        # ERROR msg
             scriptCode = self.getSeveralBit(word, 8, 5)
             errorCode = self.getSeveralBit(word, 5, 3)
         else:
@@ -199,4 +204,3 @@ class Message:
         
     def getErrorCode(self):
         return self.getSeveralBit(word, 5, 3)
-       
