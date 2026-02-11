@@ -15,13 +15,13 @@
 #... implement proper checksum
 #... compress map fragments so it can can have more than 64 spaces
 
-# import controlhardware_testing.c as hw 
+import controlhardware_testing.c as hw 
 import errorHandeling.py as err
 
 class Message:
     def __init__(self, senderID, receiverID, senderRootFlag, 
                  senderMap, senderMode, senderSource, 
-                 senderBusyFlag, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderParityErrorFlag, senderErrorCode, senderScriptCode):
+                 senderBusyFlag, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderParityErrorFlag, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
         self.senderID = senderID
         # flags
         self.REPLY = senderReplyFlag
@@ -37,6 +37,8 @@ class Message:
         self.map = senderMap
         self.scriptCode = senderScriptCode
         self.errorCode = senderErrorCode
+        self.updateCode = instructionUpdateCode
+        self.updateData = instructionUpdateData
         
     #----- bit manipulation code -----
     @staticmethod
@@ -88,31 +90,34 @@ class Message:
     def createErrorMsg(self):
         msg = 0 
         msg = Message.setSeveralBit(msg, 13, 3, 4)
-        msg = Message.setSeveralBit(msg, 8, 5, self.scriptCode)  
-        msg = Message.setSeveralBit(msg, 5, 3, self.errorCode)
+        msg = Message.setSeveralBit(msg, 8, 3, self.scriptCode)  
+        msg = Message.setSeveralBit(msg, 5, 5, self.errorCode)
         msg = Message.setSeveralBit(msg, 0, 5, 0)  #empty
         return msg
-        
+
+    def createSystemUpdateMsg(self):
+        msg = 0 
+        msg = Message.setSeveralBit(msg, 13, 3, 6)
+        msg = Message.setSeveralBit(msg, 8, 3, self.updateCode)  
+        msg = Message.setSeveralBit(msg, 5, 5, self.updateData)
+        msg = Message.setSeveralBit(msg, 9, 2, Message.calcParity(msg))
+        return msg   
+
     def replyMsg_busy(self):
-        self.REPLY = 1
-        self.BUSY = 1
-        hw.sendMsg(self.serializeMsg(self.createInitMsg()))
+        err.receiverIsBusy()
 
     def replyMsg_diffMode(self):
-        self.REPLY = 1
-        self.errorCode = 1 
-        hw.sendMsg(self.serializeMsg(self.createErrorMsg()))     
+        err.modeIsDifferent()    
 
     @staticmethod    
-    def serializeMsg(msg:int) -> bytearray:
+    def serializeMsg(msg:int, word) -> bytearray:
         return bytearray([
             (word >> 8) & 0xFF,
             msg & 0xFF
         ])
         # use as message = createMsg then rfid_payload = Message.serializeMsg
         
-    @staticmethod
-    def deserializeMsg(buf: bytearray) -> dict:
+    def deserializeMsg(buf: bytearray, self) -> dict:
         if len(buf) != 2:
             err.msgLengthIncorrect()
 
@@ -137,70 +142,75 @@ class Message:
             # verify parity
             word = self.setSeveralBit(word, 9, 2, 0)
             parityCalc = self.calcParity(word)
-            if not (parity == paritycalc):
+            if not (parity == parityCalc):
                 err.parityCheckIncorrect()
         elif (header == 4):        # ERROR msg
             scriptCode = self.getSeveralBit(word, 8, 5)
             errorCode = self.getSeveralBit(word, 5, 3)
+        elif (header == 5):         #Instruction
+            ROOT = 1
+            pass
+        elif (header == 6):          # SYSTEM UPDATE msg
+            pass
         else:
             err.msgTypeIncorrect()
 
 # ----- getters -----
-    def getSenderSourceType(self):
+    def getSenderSourceType(self, word):
         return self.getBit(word, 15)
     
-    def getMsgType(self):
-        if(getSenderSourceType(word,16) == 0): # sent by a robot
-            if(getSeveralBit(word, 14, 2) == 0x10): # follow up
+    def getMsgType(self, word):
+        if(self.getSenderSourceType(word,16) == 0): # sent by a robot
+            if(self.getSeveralBit(word, 14, 2) == 0x10): # follow up
                 pass
-            elif(getSeveralBit(word, 14, 2) == 0x11): # error
+            elif(self.getSeveralBit(word, 14, 2) == 0x11): # error
                 pass
-            elif(getSeveralBit(word, 14, 2) == 0x01):   # init
+            elif(self.getSeveralBit(word, 14, 2) == 0x01):   # init
                 pass
             else:
                 err.msgTypeIncorrect()
-        elif(getSenderSourceType(word,16) == 0):        # sent by the user
-            if(getSeveralBit(word, 14, 2) == 0x01):     # instruction
+        elif(self.getSenderSourceType(word,16) == 0):        # sent by the user
+            if(self.getSeveralBit(word, 14, 2) == 0x01):     # instruction
                 pass
-            elif(getSeveralBit(word, 14, 2) == 0x10):   # system update
+            elif(self.getSeveralBit(word, 14, 2) == 0x10):   # system update
                 pass
             else:
                 err.msgTypeIncorrect()
         else:
             err.msgTypeIncorrect()        
 
-    def getSenderID(self):
+    def getSenderID(self, word):
         return self.getSeveralBit(word, 10, 3)
     
-    def getREPLY(self):
+    def getREPLY(self, word):
         return self.getBit(word, 7)
         
-    def getUPDATE(self):
+    def getUPDATE(self, word):
         return self.getBit(word, 6)
         
-    def getBUSY(self):
+    def getBUSY(self, word):
         return self.getBit(word, 5)
         
-    def getROOT(self):
+    def getROOT(self, word):
         return self.getBit(word, 3)
         
-    def getDONE(self):
+    def getDONE(self, word):
         return self.getBit(word, 8)
         
-    def getMode(self):
+    def getMode(self, word):
         return self.getSeveralBit(word, 4, 3)    
     
-    def getTimestep(self):
+    def getTimestep(self, word):
         return self.getSeveralBit(word, 2, 3)
 
-    def getOrientation(self):
+    def getOrientation(self, word):
         return self.getSeveralBit(word, 11, 2)
         
-    def getMap(self):
+    def getMap(self, word):
         return self.deserialize(self.getSeveralBit(word, 0, 8))
         
-    def getScriptCode(self):
+    def getScriptCode(self, word):
         return self.getSeveralBit(word, 8, 5)
         
-    def getErrorCode(self):
+    def getErrorCode(self, word):
         return self.getSeveralBit(word, 5, 3)

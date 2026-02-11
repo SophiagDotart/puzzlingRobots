@@ -104,30 +104,27 @@ class Node:
 
     def msgRcv(self, msg, receiver):
         if self.BUSY:
-            print(f"[ERROR] Receiver is busy. Try again later")
-            msgBuild.replyMsg_busy()
             self.msgQueue.append(msg)
+            err.receiverIsBusy()
         else:
             self.BUSY = 1
             self.rcvMsgs += 1 
             if(self.mode != msgBuild.getMode()):
-                msgBuild.replyMsg_diffMode()
-                print(f"[ERROR] Receiver has a different mode")
+                err.modeIsDifferent()
             else:
-                print(f"[UPDATE] Node {self.id} received from Node {msg['sender']}")
+                print(f"[FYI] Node {self.id} received from Node {msg['sender']}")
                 # check if either node root THEN go for the msg that is newer THEN check if they have same mode
                 if self.ROOT == 1:
                     pass                                #what is meant is restart the process !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 elif msgBuild.getROOT() == 1:
                     self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
-                    print(f"[UPDATE] Node {self.id} copied Node {msgBuild.getSenderId()} it is a ROOT")
+                    print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()} it is a ROOT")
                 else:
                     if msgBuild.getTimestep() > self.t:
                         self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
-                        print(f"[UPDATE] Node {self.id} copied Node {msgBuild.getSenderId()} bc newer data")
+                        print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()} bc newer data")
                     elif msgBuild.getTimestep() < self.t:
-                        print(f"[ERROR] Sender's timestamp is lower than mine")
-                        self.sendMsg(msgBuild.getSenderId())
+                        err.olderTimestamp()
                     else:
                         print(f"[UPDATE] Communicating nodes have the same timestamps, so no exchange")
             self.STATE = 1              
