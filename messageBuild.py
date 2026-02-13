@@ -19,14 +19,12 @@ import controlhardware_testing.c as hw
 import errorHandeling.py as err
 
 class Message:
-    def __init__(self, senderID, receiverID, senderRootFlag, 
-                 senderMap, senderMode, senderSource, 
-                 senderBusyFlag, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderParityErrorFlag, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
+    def __init__(self, senderID, receiverID, senderRootFlag, instructionComplete, instructionMode, 
+                 senderMap, senderMode, senderSource, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderParityErrorFlag, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
         self.senderID = senderID
         # flags
         self.REPLY = senderReplyFlag
         self.UPDATE = senderUpdateFlag
-        self.BUSY = senderBusyFlag
         self.ROOT = senderRootFlag
         self.DONE = senderDoneFlag
         self.PARITY = senderParityErrorFlag
@@ -39,6 +37,8 @@ class Message:
         self.errorCode = senderErrorCode
         self.updateCode = instructionUpdateCode
         self.updateData = instructionUpdateData
+        self.INSTDONE = instructionComplete
+        self.instMode = instructionMode
         
     #----- bit manipulation code -----
     @staticmethod
@@ -70,8 +70,7 @@ class Message:
         msg = Message.setSeveralBit(msg, 13, 3, 1) 
         msg = Message.setBit(msg, 10, self.REPLY) 
         msg = Message.setBit(msg, 9, self.UPDATE)
-        msg = Message.setBit(msg, 8, self.BUSY)
-        msg = Message.setSeveralBit(msg, 7, 3, self.mode)
+        msg = Message.setSeveralBit(msg, 7, 4, self.mode)
         msg = Message.setBit(msg, 3, self.ROOT)
         msg = Message.setSeveralBit(msg, 2, 3, self.timestamp)
         REPLY, BUSY, UPDATE, ROOT = 0
@@ -102,12 +101,14 @@ class Message:
         msg = Message.setSeveralBit(msg, 5, 5, self.updateData)
         msg = Message.setSeveralBit(msg, 9, 2, Message.calcParity(msg))
         return msg   
-
-    def replyMsg_busy(self):
-        err.receiverIsBusy()
-
-    def replyMsg_diffMode(self):
-        err.modeIsDifferent()    
+    
+    def createInstructMsg(self):
+        msg = 0
+        msg = Message.setSeveralBit(msg, 13, 3, 5)
+        msg = Message.setSeveralBit(msg, 9, 4, self.instMode)
+        msg = Message.setBit(msg, 8, self.INSTDONE)
+        msg = Message.setSeveralBit(msg, 7, 8, self.map)
+        return msg
 
     @staticmethod    
     def serializeMsg(msg:int, word) -> bytearray:
@@ -120,13 +121,11 @@ class Message:
     def deserializeMsg(buf: bytearray, self) -> dict:
         if len(buf) != 2:
             err.msgLengthIncorrect()
-
         word = (buf[0] << 8) | buf[1]
-        
         #read header
         header = Message.getSeveralBit(word, 13, 3)
         
-        if (header == 1):             # INIT msg
+        if (header == 1):               # INIT msg
             senderID = self.getSeveralBit(word, 10, 3)
             REPLY = self.getBit(word, 7)
             UPDATE = self.getBit(word, 6)
@@ -134,24 +133,33 @@ class Message:
             mode = self.getSeveralBit(word, 4, 3)
             ROOT = self.getBit(word, 3)
             timestamp = self.getSeveralBit(word, 2, 3)
-        elif (header == 2):        # FOLLOWUP msg
+        elif (header == 2):             # FOLLOWUP msg
             orientation = self.getSeveralBit(word, 11, 2)
             parity = self.getSeveralBit(word, 9, 2)
             DONE = self.getBit(word, 8)
             mapData = self.getSeveralBit(word, 0, 8)
             # verify parity
-            word = self.setSeveralBit(word, 9, 2, 0)
+            word = self.setSeveralBit(word, 9, 2, 2)
             parityCalc = self.calcParity(word)
             if not (parity == parityCalc):
                 err.parityCheckIncorrect()
-        elif (header == 4):        # ERROR msg
+        elif (header == 4):             # ERROR msg
             scriptCode = self.getSeveralBit(word, 8, 5)
             errorCode = self.getSeveralBit(word, 5, 3)
-        elif (header == 5):         #Instruction
+        elif (header == 5):             # INSTRUCT msg
             ROOT = 1
-            pass
-        elif (header == 6):          # SYSTEM UPDATE msg
-            pass
+            updateCode = self.getSeveralBit(word, 8, 3)
+            updateData = self.getSeveralBit(word, 0, 8)
+            # verify parity
+            word = self.setSeveralBit(word, 11, 2, 0)
+            parityCalc = self.calcParity(word)
+            if not (parity == parityCalc):
+                err.parityCheckIncorrect()
+        elif (header == 6):             # SYSTEM UPDATE msg
+            INSTDONE = self.getBit(word, 8)
+            instructData = self.getSeveralBit(word, 0, 8)
+            # write the update script
+            # restart robot
         else:
             err.msgTypeIncorrect()
 
@@ -214,3 +222,18 @@ class Message:
         
     def getErrorCode(self, word):
         return self.getSeveralBit(word, 5, 3)
+    
+    def getUpdateCode(self, word):
+        return self.getSeveralBit(word, 8, 3)
+    
+    def getUpdateData(self, word):
+        return self.getSeveralBit(word, 0, 8)
+    
+    def getInstMode(self, word):
+        return self.getSeveralBit(word, 9, 4)
+    
+    def getINSTDONE(self, word):
+        return self.getBit(word, 8)
+    
+    def getInstructData(self, word):
+        return self.getSeveralBit(word, 0, 8)
