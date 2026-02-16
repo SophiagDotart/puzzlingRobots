@@ -3,9 +3,10 @@
 # Switching logic in script "switching conditions"
 # Hardware functions in separate script
 
-import switchingConditions_tester.py as switchCon
-#scripts not imported: messageBuild, controlHardware
+import switchingConditions.py as switchCon
+#scripts not imported: controlHardware
 import errorHandling.py as err
+import messageBuild.py as msgBuild
 
 class Map:
     # functions related to the compression of the map (dictionary to bytearray and back)
@@ -38,7 +39,7 @@ class Map:
         self.goalMargins = (0, 0, 0, 0)
         
     #----- Create and delete map -----
-    def createMap():
+    def createMap(self):
         self.compMap = bytearray()
         self.margins = (0, 0, 0, 0)
         
@@ -49,18 +50,18 @@ class Map:
         # when the node first enters the swarm, it gets assigned a coordinate by its neighbour
         senderX, senderY = msg["senderPos"]
         moduleNumber = msg["senderModule"]
-        dx, dy = orientation[moduleNumber]      # it is calculated "Im sending on module 1" and "Im receiving on module 3"
+        dx, dy = msgBuild.orientation[moduleNumber]      # it is calculated "Im sending on module 1" and "Im receiving on module 3"
         return senderX + dx, senderY + dy       # add the difference to the neighbour's position
 
     def overwritePos(self, msg):
-        self.x, self.y = getOwnPos(msg)
+        self.x, self.y = self.getOwnPos(msg)
 
     def updatePosition(self, msg):
         # root status do not get overwritten
         if self.root:
             print(f"[UPDATE] This node is a root, it will keep its position")
             return
-        overwritePos(msg)
+        self.overwritePos(msg)
         senderX, senderY = msg["senderPos"]
         print(f"[UPDATE] Node {self.id} updated it's position to ({senderX}, {senderY})")
         
@@ -169,12 +170,12 @@ class Map:
             return None 
         idx = (yPos - miny) * width + (xPos - minx)       # Convert (x, y) → flat array index
         byte = self.compMap[idx]
-        return MapCompression.byteToTile.get(byte, "?")
+        return self.byteToTile.get(byte, "?")
 
     def attachmentAttempt(self, msg):      
         # to check if the node is not being attached in a forbidden position
         if not hasattr(self, "goalMap") or not self.goalMap:
-            err.emptygoalMap()
+            err.emptyGoalMap()
             return False
         newX, newY = self.getOwnPos(msg)
         allowedPos = {"+", "■"}
@@ -185,7 +186,7 @@ class Map:
             # start the whole map cycle
             return True
         else:
-            err.attachmentPosForbidden(pos(x), pos(y))
+            err.attachmentPosForbidden(self.pos(newX), self.pos(newY))
             return False
 
     # def findMistakesInMap():        # to create a map where all positions that do not correspond with the goalMap; required?

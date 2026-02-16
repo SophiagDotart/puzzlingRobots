@@ -16,6 +16,7 @@ import controlHardware.py as hw
 #... ... 00000 = receiver is busy. Retry later
 #... ... 00001 = receiver and sender’s mode are different
 #... ... 00010 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
+#... ... 00011 = receiver is ROOT
 
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000
@@ -28,7 +29,7 @@ def emptyGoalMap():     #head 11 script 00100 error 001
     
 def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010 extra 00001
     # light up in error
-    print(f"[ERROR] ("{posx}"|" {posy} " is not a valid position for this game")
+    print(f"[ERROR] ({posx}|{posy}) is not a valid position for this game")
     # maybe add th extra field and use those bits as well?
     return
 
@@ -39,7 +40,7 @@ def msgLengthIncorrect():
     msgBuild.Message.header = 3      #ERROR
     msgBuild.scriptCode = 1
     msgBuild.errorCode = 0
-    hw.sendMsg(Message.createErrorMsg())
+    hw.sendMsg(msgBuild.createErrorMsg())
     
 def msgTypeIncorrect():
     print("[ERROR] 0010000100000 This message is not an INIT, FOLLOWUP, nor ERROR msg. Pls retry")
@@ -71,4 +72,10 @@ def olderTimestamp():
     print("[ERROR] 0000001000000 Sender's timestamp is older than receiver's. Will now send my own timestamp")
     msgBuild.scriptCode = 0
     msgBuild.errorCode = 2
+    msgBuild.sendMsg(msgBuild.serializeMsg(msgBuild.createErrorMsg()))
+
+def receiverIsROOT():
+    print(f"[] 0000001100000 Receiver is ROOT")
+    msgBuild.scriptCode = 0
+    msgBuild.errorCode = 3
     msgBuild.sendMsg(msgBuild.serializeMsg(msgBuild.createErrorMsg()))
