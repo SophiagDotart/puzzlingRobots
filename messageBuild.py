@@ -27,7 +27,6 @@ class Message:
         self.UPDATE = senderUpdateFlag
         self.ROOT = senderRootFlag
         self.DONE = senderDoneFlag
-        self.PARITY = senderParityErrorFlag
         # payload
         self.mode = senderMode
         self.timestamp = senderTimestamp
@@ -43,7 +42,7 @@ class Message:
     #----- bit manipulation code -----
     @staticmethod
     def setBit(word: int, bitPos: int, value: int):
-        value = 1 if value else 0   # make sure the value is definetely 100% 1 or 0
+        value = 1 if value else 0   # make sure the value is definitely 100% 1 or 0
         return word | (1 << bitPos) if value else word & ~(1 << bitPos)
         # | = OR bitwise ;;; use it bc sinle bits can not be assigned, only bytes can be assigned. So, to change a single bit we can do that with OR. Add might lead to errors bc of the carry flag. Using OR is called "mask"
 

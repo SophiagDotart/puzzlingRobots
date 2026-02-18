@@ -1,8 +1,10 @@
 # Script to handle the error once they appear. It reacts to raise valueErrors
-import messageBuild.py as msgBuild
-import controlHardware.py as hw
+import messageBuild as msgBuild
+import controlHardware as hw
 
 #Lib for script and error codes
+#... 011 = goalMapStorage
+#... ... 00000 = non existent goalMap
 #... 010 = mapFunctions
 #... ... 00000 = the map is missing
 #... ... 00001 = the goal map is missing
@@ -18,20 +20,25 @@ import controlHardware.py as hw
 #... ... 00010 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
 #... ... 00011 = receiver is ROOT
 
+#----- From goalMapsStorage -----
+def goalMapNonExistent():
+    print(f"[ERROR] 0110000000000 The goal map does not exist")
+    return None
+
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000
     print(f"[ERROR] Empty map")
-    return
+    return None
     
 def emptyGoalMap():     #head 11 script 00100 error 001
     print(f"[ERROR] Empty goal map. Nothing to compare")
-    return
+    return None
     
 def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010 extra 00001
     # light up in error
     print(f"[ERROR] ({posx}|{posy}) is not a valid position for this game")
     # maybe add th extra field and use those bits as well?
-    return
+    return None
 
 
 #----- From messageBuild -----

@@ -3,15 +3,15 @@
 # Switching logic in script "switching conditions"
 # Hardware functions in separate script
 
-import switchingConditions.py as switchCon
+import switchingConditions as switchCon
 #scripts not imported: controlHardware
-import errorHandling.py as err
-import messageBuild.py as msgBuild
+import errorHandeling as err
+import messageBuild as msgBuild
 
 class Map:
     # functions related to the compression of the map (dictionary to bytearray and back)
 
-    MAX_MAP_SIZE = 2^6
+    MAX_MAP_SIZE = 2**6
 
     tileToByte = {
         # tile lookup table

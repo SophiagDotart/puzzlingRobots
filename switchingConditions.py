@@ -60,7 +60,7 @@ class Node:
             self.delayIfBusy = 0
         print(f"[UPDATE] Node {self.id} is now passive again bc timeout")
     
-    def politeGossipWait(self, receiver, receiverState):
+    def politeGossipWait(self, receiver):
         if msgBuild.getBUSY():
             self.delayIfBusy = min(self.delayIfBusy +1, maxDelayIfBusy) + random.randint(0, 2)
             print(f"[UPDATE] receiving Node {receiver} is busy. Node {self.id} will retry later")
@@ -123,6 +123,7 @@ class Node:
                 elif msgBuild.getROOT() == 1 & self.ROOT == 0:
                     self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
                     print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()}")
+                    
                 else:
                     if(self.mode != msgBuild.getMode()):
                         err.modeIsDifferent()

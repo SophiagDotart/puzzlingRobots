@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.2.2 Chrome/134.0.6998.178 Electron/35.1.2 Safari/537.36" version="26.2.2">
   <diagram name="Page-1" id="_GDnURFBWkhBpYTg1XNs">
-    <mxGraphModel dx="816" dy="481" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="0">
+    <mxGraphModel dx="985" dy="663" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -127,7 +127,7 @@
         <mxCell id="453hEmwdaGMQTMqiXUT_-18" value="0 for instructions come from the user, 1 for comes from another robot" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="340" y="480" width="130" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="453hEmwdaGMQTMqiXUT_-19" value="STATE" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" parent="1" vertex="1">
+        <mxCell id="453hEmwdaGMQTMqiXUT_-19" value="IDLE" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="211" y="530" width="60" height="30" as="geometry" />
         </mxCell>
         <mxCell id="453hEmwdaGMQTMqiXUT_-20" value="0 = PASSIVE state, 1 = ACTIVE" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" parent="1" vertex="1">
@@ -166,17 +166,20 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="Xux56mpjxaqRq34BcA_X-1" value="INSTRUCT" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+        <mxCell id="Xux56mpjxaqRq34BcA_X-1" value="INSTRUCT" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="130" y="570" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="Xux56mpjxaqRq34BcA_X-2" value="INSTDONE" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+        <mxCell id="Xux56mpjxaqRq34BcA_X-2" value="INSTDONE" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="211" y="570" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="Xux56mpjxaqRq34BcA_X-3" value="same as DONE, just for instruction" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+        <mxCell id="Xux56mpjxaqRq34BcA_X-3" value="same as DONE, just for instruction" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="470" y="570" width="100" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="Xux56mpjxaqRq34BcA_X-4" value="change this to IDLE !!!!!" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+        <mxCell id="Xux56mpjxaqRq34BcA_X-4" value="change this to IDLE !!!!!" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="680" y="520" width="130" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KwBMhsNtM5hbl6-1ahn_-1" value="THE ROBOTS ARE ALWAYS LOOKING TO DO STH" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="414" y="640" width="60" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
