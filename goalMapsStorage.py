@@ -1,15 +1,14 @@
 # Example goalMaps for a swarm of 6
-import mapFunctions as mapFunc
-import errorHandeling as err
+import errorHandling as err
 
 class GoalMapManager():
     def __init__(self, singleMap):
         self.singleMap = singleMap   
-        self.goalMaps = {}          # name = (compressedMap|margins) to satisfy map architecture from mapFunc
+        self.goalMaps = {}          # name = (compressedMap, margins) to satisfy map architecture from mapFunc
 
     def addGoalMap(self, name, dictGoalMap):
-        self.singleMap.compressMapToBytearray(dictGoalMap) # here we also get the margins from the mapFunc
-        self.goalMaps[name] = (self.singleMap[:], self.singleMap.margins)
+        compressedGoalMap, margins = self.singleMap.compressMapToByteArray(dictGoalMap) # here we also get the margins from the mapFunc
+        self.goalMaps[name] = (compressedGoalMap[:], margins)
 
     def loadGoalMap(self, name):
         if name not in self.goalMaps:

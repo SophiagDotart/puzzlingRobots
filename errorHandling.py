@@ -10,6 +10,7 @@ import controlHardware as hw
 #... ... 00001 = the goal map is missing
 #... ... 00010 = the tile is trying to attach itself to a forbidden position within the map
 #... ... ..... 00001 = forbidden position due to outside of the boundaries or 'has to be left empty' tile
+#... ... 00011 = the size of the map is too big
 #... 001 = messageBuild
 #... ... 00000 = the message received is the incorrect length
 #... ... 00001 = the message is neither a INIT, FOLLOWUP, or ERROR message
@@ -27,17 +28,21 @@ def goalMapNonExistent():
 
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000
-    print(f"[ERROR] Empty map")
+    print(f"[ERROR] 0100000000000 Empty map")
     return None
     
 def emptyGoalMap():     #head 11 script 00100 error 001
-    print(f"[ERROR] Empty goal map. Nothing to compare")
+    print(f"[ERROR] 0100000100000 Empty goal map")
     return None
     
 def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010 extra 00001
     # light up in error
-    print(f"[ERROR] ({posx}|{posy}) is not a valid position for this game")
+    print(f"[ERROR] 0100001000000 ({posx}|{posy}) is not a valid position for this game")
     # maybe add th extra field and use those bits as well?
+    return None
+
+def mapTooLarge():
+    print(f"[ERROR] 0110001100000 The size of the map is too big")
     return None
 
 

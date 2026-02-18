@@ -15,8 +15,8 @@
 #... implement proper checksum
 #... compress map fragments so it can can have more than 64 spaces
 
-import controlhardware_testing.c as hw 
-import errorHandeling.py as err
+import controlHardware as hw 
+import errorHandling as err
 
 class Message:
     def __init__(self, senderID, receiverID, senderRootFlag, instructionComplete, instructionMode, 
@@ -44,7 +44,7 @@ class Message:
     def setBit(word: int, bitPos: int, value: int):
         value = 1 if value else 0   # make sure the value is definitely 100% 1 or 0
         return word | (1 << bitPos) if value else word & ~(1 << bitPos)
-        # | = OR bitwise ;;; use it bc sinle bits can not be assigned, only bytes can be assigned. So, to change a single bit we can do that with OR. Add might lead to errors bc of the carry flag. Using OR is called "mask"
+        # | = OR bitwise ;;; use it bc single bits can not be assigned, only bytes can be assigned. So, to change a single bit we can do that with OR. Add might lead to errors bc of the carry flag. Using OR is called "mask"
 
     @staticmethod
     def setSeveralBit(word: int, startBit: int, width: int, value: int) -> int:

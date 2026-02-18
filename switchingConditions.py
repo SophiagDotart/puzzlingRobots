@@ -10,7 +10,8 @@ import random
 # import time
 import mapFunctions as mapFunc
 import messageBuild as msgBuild
-import errorHandeling as err
+import errorHandling as err
+from mapFunctions import Map
 
 # tested in input race simulation
 timeToPassive = 50                  
@@ -31,8 +32,6 @@ class Node:
         self.IDLE = 1
         self.ROOT = 0
         self.t = 0
-        self.map = []               
-        self.goalMap = []
         # For communications and priority
         self.REPLY = 0
         self.mode = 0
@@ -46,6 +45,7 @@ class Node:
         self.lastUpdate = 0
         self.sentMsgs = 0
         self.rcvMsgs = 0
+        self.mapHandler = Map()
 
     #----- Auxiliary functions -----
     def becomeRoot(self):          
@@ -73,7 +73,7 @@ class Node:
             return
 
     def printData(self):
-        print(f"Robot {self.nodeId} is at position {mapFunc.getCurrentPos()}")
+        print(f"Robot {self.nodeId} is at position ({self.mapHandler.x}, {self.mapHandler.y})")
         print(f"Current root: {self.ROOT}")
         print(f"Current timestamp: {self.t}")
         print(f"Current internal map: {mapFunc.printCompressedMap(self.map)}")
@@ -120,7 +120,7 @@ class Node:
                 self.rcvMsgs += 1 
                 if self.ROOT == 1:
                     err.receiverIsROOT()
-                elif msgBuild.getROOT() == 1 & self.ROOT == 0:
+                elif msgBuild.getROOT() == 1 and self.ROOT == 0:
                     self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
                     print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()}")
                     
