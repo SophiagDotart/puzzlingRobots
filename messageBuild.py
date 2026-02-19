@@ -19,7 +19,7 @@ import controlHardware as hw
 import errorHandling as err
 
 class Message:
-    def __init__(self, senderID, receiverID, senderRootFlag, instructionComplete, instructionMode, 
+    def __init__(self, senderID, receiverID, senderRootFlag, instructionComplete, instructionMode, positionDone, posX, posY, 
                  senderMap, senderMode, senderSource, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderParityErrorFlag, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
         self.senderID = senderID
         # flags
@@ -38,6 +38,9 @@ class Message:
         self.updateData = instructionUpdateData
         self.INSTDONE = instructionComplete
         self.instMode = instructionMode
+        self.POSDONE = positionDone
+        self.posX = posX
+        self.posY = posY
         
     #----- bit manipulation code -----
     @staticmethod
@@ -108,6 +111,14 @@ class Message:
         msg = Message.setBit(msg, 8, self.INSTDONE)
         msg = Message.setSeveralBit(msg, 7, 8, self.map)
         return msg
+    
+    def createPosMsg(self):
+        msg = 0
+        msg = Message.setSeveralBit(msg, 13, 3, 4) # header
+        msg = self.setSeveralBit(msg, 9, 4, 0)                  # reserved is left empty
+        msg = self.setBit(msg, 8, self.POSDONE)
+        msg = self.setSeveralBit(msg, 4, 4, self.posX)
+        msg = self.setSeveralBit(msg, 0, 4, self.posY)
 
     @staticmethod    
     def serializeMsg(msg:int, word) -> bytearray:
@@ -159,6 +170,10 @@ class Message:
             instructData = self.getSeveralBit(word, 0, 8)
             # write the update script
             # restart robot
+        elif (header == 4):              # POS msg
+            POSDONE = self.getBit(word, 8)
+            posX = self.getSeveralBit(word, 4, 4)
+            posY = self.getSeveralBit(word, 0, 4)
         else:
             err.msgTypeIncorrect()
 
@@ -186,53 +201,101 @@ class Message:
         else:
             err.msgTypeIncorrect()        
 
+    def getHeader(self, word):
+        return self.getSeveralBit(word, 13, 3)
+
     def getSenderID(self, word):
+        if self.getHeader is not 1:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 10, 3)
     
     def getREPLY(self, word):
+        if self.getHeader is not 1:
+            err.msgTypeIncorrect()
         return self.getBit(word, 7)
         
     def getUPDATE(self, word):
+        if self.getHeader is not 1:
+            err.msgTypeIncorrect()
         return self.getBit(word, 6)
         
-    def getBUSY(self, word):
-        return self.getBit(word, 5)
-        
     def getROOT(self, word):
+        if self.getHeader is not 1:
+            err.msgTypeIncorrect()
         return self.getBit(word, 3)
         
     def getDONE(self, word):
+        if self.getHeader is not 2:
+            err.msgTypeIncorrect()
         return self.getBit(word, 8)
         
     def getMode(self, word):
+        if self.getHeader is not 1:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 4, 3)    
     
     def getTimestep(self, word):
+        if self.getHeader is not 1:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 2, 3)
 
     def getOrientation(self, word):
+        if self.getHeader is not 2:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 11, 2)
         
     def getMap(self, word):
+        if self.getHeader is not 2:
+            err.msgTypeIncorrect()
         return self.deserialize(self.getSeveralBit(word, 0, 8))
         
     def getScriptCode(self, word):
+        if self.getHeader is not 3:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 8, 5)
         
     def getErrorCode(self, word):
+        if self.getHeader is not 3:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 5, 3)
     
     def getUpdateCode(self, word):
+        if self.getHeader is not 6:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 8, 3)
     
     def getUpdateData(self, word):
+        if self.getHeader is not 6:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 8)
     
     def getInstMode(self, word):
+        if self.getHeader is not 5:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 9, 4)
     
     def getINSTDONE(self, word):
+        if self.getHeader is not 5:
+            err.msgTypeIncorrect()
         return self.getBit(word, 8)
     
     def getInstructData(self, word):
+        if self.getHeader is not 5:
+            err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 8)
+
+    def getPOSDONE(self, word):
+        if self.getHeader is not 4:
+            err.msgTypeIncorrect()
+        return self.getBit(word, 8)
+    
+    def getPosX(self, word):
+        if self.getHeader is not 4:
+            err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 4, 4)
+    
+    def getPosY(self, word):
+        if self.getHeader is not 4:
+            err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 0, 4)
+    

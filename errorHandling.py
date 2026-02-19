@@ -13,7 +13,7 @@ import controlHardware as hw
 #... ... 00011 = the size of the map is too big
 #... 001 = messageBuild
 #... ... 00000 = the message received is the incorrect length
-#... ... 00001 = the message is neither a INIT, FOLLOWUP, or ERROR message
+#... ... 00001 = the message is neither a INIT, POS, FOLLOWUP, SYSTEM UPDATE, INSTRUCTION or ERROR message
 #... ... 00010 = parity check is incorrect
 #... 000 = switching conditions
 #... ... 00000 = receiver is busy. Retry later

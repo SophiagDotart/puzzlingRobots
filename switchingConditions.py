@@ -37,7 +37,6 @@ class Node:
         self.mode = 0
         self.SOURCE = 1             # if it were a card this would be 0
         self.BUSY = 0
-        self.msgQueue = []          # list of rcv messages -> might have to limit of stored amount later
         self.delayIfBusy = 0
         self.updateCode = 1 
         print(f"[NEW] Node {self.id} was created")
@@ -55,30 +54,30 @@ class Node:
     def timeout(self):
         # if a node has not been updated for timeToPassive steps then become passive
         if self.lastUpdate > timeToPassive:
-            self.STATE = 0
+            self.IDLE = 1
             self.ROOT = 0
             self.delayIfBusy = 0
-        print(f"[UPDATE] Node {self.id} is now passive again bc timeout")
+        print(f"[FYI] Node {self.id} is now IDLE again bc timeout")
     
     def politeGossipWait(self, receiver):
         if msgBuild.getBUSY():
             self.delayIfBusy = min(self.delayIfBusy +1, maxDelayIfBusy) + random.randint(0, 2)
-            print(f"[UPDATE] receiving Node {receiver} is busy. Node {self.id} will retry later")
+            print(f"[FYI] receiving Node {receiver} is busy. Node {self.id} will retry later")
             err.receiverBusy()
             
         if self.delayIfBusy >= maxDelayIfBusy:      # resend msg when polite gossip delay is ready to retry
-            print(f"[SEND] {self.id} has waited politely and will now resend the msg to {receiver}")
+            print(f"[FIY] {self.id} has waited politely and will now resend the msg to {receiver}")
             self.delayIfBusy = 0
         elif self.delayIfBusy > 0:                  # wait before interrupting again
             return
 
     def printData(self):
         print(f"Robot {self.nodeId} is at position ({self.mapHandler.x}, {self.mapHandler.y})")
-        print(f"Current root: {self.ROOT}")
+        print(f"Is ROOT: {self.ROOT}, is IDLE: {self.IDLE}")
         print(f"Current timestamp: {self.t}")
-        print(f"Current internal map: {mapFunc.printCompressedMap(self.map)}")
+        print(f"Current internal map: {mapFunc.printCompressedMap(self.compMap)}")
         print(f"Currently playing game: {self.mode}")
-        print(f"Current goal/ mode map: {mapFunc.printCompressedMap(self.goalMap)}")
+        print(f"Current goal/ mode map: {mapFunc.printCompressedMap(self.compGoalMap)}")
         #not printing waiting queue yet
         print(f"Statistical data")
         print(f"Amount of msg rcv: {self.rcvMsgs}") 
@@ -95,12 +94,12 @@ class Node:
             err.messageSourceIncorrect()
     
     def instructRcv(self, msg):
-        self.STATE = 1
+        self.IDLE = 0
         self.ROOT = 1
         mapFunc.createMap(msg)
         self.mode = msg["mode"]
         self.t += 1
-        print(f"[UPDATE] Node {self.id} received instructions from card | mode = {self.mode}")
+        print(f"[FYI] Node {self.id} received instructions from card, mode = {self.mode}")
 
     def msgRcv(self, msg, receiver):
         # UPDATE > IDLE > BUSY > ROOT > MODE > TIMESTAMPS
@@ -108,7 +107,6 @@ class Node:
             print(f"[ERROR] Update structure not implemented")
             pass
         elif (self.IDLE):
-            IDLE = 0
             self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
             print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()}")
         else:
@@ -141,7 +139,4 @@ class Node:
                 self.delayIfBusy = 0
             self.lastUpdate = self.t
             self.t += 1
-            if self.msgQueue and not self.busy:
-                nextMsg = self.msgQueue.pop(0)
-                print(f"[QUEUE] Node {self.id} now processing Node {nextMsg['sender']} msg")
-                self.msgRcv(nextMsg)
+        self.IDLE = 0
