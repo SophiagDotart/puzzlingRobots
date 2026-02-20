@@ -17,9 +17,10 @@
 
 import controlHardware as hw 
 import errorHandling as err
+import switchingConditions as switchCon
 
 class Message:
-    def __init__(self, senderID, receiverID, senderRootFlag, instructionComplete, instructionMode, positionDone, posX, posY, 
+    def __init__(self, senderID, receiverID, senderRootFlag, instructionComplete, instructionMode, positionDone, posX, posY, extraErrorBits,
                  senderMap, senderMode, senderSource, senderReplyFlag, senderUpdateFlag, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderParityErrorFlag, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
         self.senderID = senderID
         # flags
@@ -41,6 +42,7 @@ class Message:
         self.POSDONE = positionDone
         self.posX = posX
         self.posY = posY
+        self.extraErrorBits = extraErrorBits
         
     #----- bit manipulation code -----
     @staticmethod
@@ -93,7 +95,7 @@ class Message:
         msg = Message.setSeveralBit(msg, 13, 3, 4)
         msg = Message.setSeveralBit(msg, 8, 3, self.scriptCode)  
         msg = Message.setSeveralBit(msg, 5, 5, self.errorCode)
-        msg = Message.setSeveralBit(msg, 0, 5, 0)  #empty
+        msg = Message.setSeveralBit(msg, 0, 5, self.extraErrorBits)
         return msg
 
     def createSystemUpdateMsg(self):
@@ -119,6 +121,11 @@ class Message:
         msg = self.setBit(msg, 8, self.POSDONE)
         msg = self.setSeveralBit(msg, 4, 4, self.posX)
         msg = self.setSeveralBit(msg, 0, 4, self.posY)
+
+    def createAckMsg(self):
+        lastHeader = switchCon.lastRcvMsgHeader
+        # implement rest of message!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if
 
     @staticmethod    
     def serializeMsg(msg:int, word) -> bytearray:
@@ -262,6 +269,12 @@ class Message:
         if self.getHeader is not 3:
             err.msgTypeIncorrect()
         return self.getSeveralBit(word, 5, 3)
+    
+    # Message.setSeveralBit(msg, 0, 5, self.extraErrorBits)
+    def getExtraErrorBits(self, word):
+        if self.getHeader is not 3:
+            err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 0, 5)
     
     def getUpdateCode(self, word):
         if self.getHeader is not 6:

@@ -21,7 +21,7 @@ class Hw:
         pass
 
     def initAllHw(self):
-        pass
+        print(f"[FYI] Initiated all hardware")
 
     def resetRobot(self):
         self.RESET_PIN = 1

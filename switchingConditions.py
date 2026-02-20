@@ -39,6 +39,7 @@ class Node:
         self.BUSY = 0
         self.delayIfBusy = 0
         self.updateCode = 1 
+        self.lastRcvMsgHeader = None
         print(f"[NEW] Node {self.id} was created")
         # For statistics
         self.lastUpdate = 0
@@ -64,7 +65,6 @@ class Node:
             self.delayIfBusy = min(self.delayIfBusy +1, maxDelayIfBusy) + random.randint(0, 2)
             print(f"[FYI] receiving Node {receiver} is busy. Node {self.id} will retry later")
             err.receiverBusy()
-            
         if self.delayIfBusy >= maxDelayIfBusy:      # resend msg when polite gossip delay is ready to retry
             print(f"[FIY] {self.id} has waited politely and will now resend the msg to {receiver}")
             self.delayIfBusy = 0

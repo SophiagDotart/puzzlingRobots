@@ -51,6 +51,7 @@ def main():
             for sensorNumber in range(AMOUNT_MODULES):
                 msg = hw.listenThroughModule(sensorNumber) # the actual polling and reacting to the msg is in control hardware
                 if msg is not None:
+                    switchCon.lastRcvMsgHeader = msgBuild.getHeader(msg)
                     msgBuild.decodeMsg(msg) # rest of the stuff the receiver will take care of as seen in talking phase
                 #msgDetected = 1
         delay(TIMER)
