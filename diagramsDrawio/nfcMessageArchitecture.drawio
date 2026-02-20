@@ -1,0 +1,79 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.2.2 Chrome/134.0.6998.178 Electron/35.1.2 Safari/537.36" version="26.2.2">
+  <diagram name="Page-1" id="BMWBcP8mXSY8e0BMYt1l">
+    <mxGraphModel dx="910" dy="688" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-9" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="240" y="90" width="370" height="490" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-23" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry x="-10" y="-40" width="380" height="530" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-10" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry width="360" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-11" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry x="20" y="40" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-12" value="Header" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry x="50" y="75" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-13" value="Payload" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry x="140" y="75" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-14" value="NDEF Records" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry y="10" width="126" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-15" value="NDEF Message" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry x="36" y="40" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-8" value="" style="group" vertex="1" connectable="0" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry y="160" width="360" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-1" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-8">
+          <mxGeometry width="360" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-3" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-8">
+          <mxGeometry x="20" y="40" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-4" value="Header" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-8">
+          <mxGeometry x="50" y="75" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-5" value="Payload" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-8">
+          <mxGeometry x="140" y="75" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-6" value="NDEF Records" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-8">
+          <mxGeometry y="10" width="126" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-7" value="NDEF Message" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-8">
+          <mxGeometry x="36" y="40" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-24" value="NDEF Message" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-9">
+          <mxGeometry y="-30" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-16" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="240" y="410" width="360" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-17" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-16">
+          <mxGeometry width="360" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-18" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-16">
+          <mxGeometry x="20" y="40" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-19" value="Header" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-16">
+          <mxGeometry x="50" y="75" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-20" value="Payload" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-16">
+          <mxGeometry x="140" y="75" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-21" value="NDEF Records" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-16">
+          <mxGeometry y="10" width="126" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cENeAXRDsjk-Wrudh9sx-22" value="NDEF Message" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="cENeAXRDsjk-Wrudh9sx-16">
+          <mxGeometry x="36" y="40" width="90" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

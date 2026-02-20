@@ -21,6 +21,10 @@ import controlHardware as hw
 #... ... 00010 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
 #... ... 00011 = receiver is ROOT
 
+def decodeErrorMsg():
+    pass
+    # if busy then initiate polite gossip from switchCon
+
 #----- From goalMapsStorage -----
 def goalMapNonExistent():
     print(f"[ERROR] 0110000000000 The goal map does not exist")

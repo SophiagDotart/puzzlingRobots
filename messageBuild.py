@@ -128,13 +128,12 @@ class Message:
         ])
         # use as message = createMsg then rfid_payload = Message.serializeMsg
         
-    def deserializeMsg(buf: bytearray, self) -> dict:
+    def decodeMsg(self, buf: bytearray):
         if len(buf) != 2:
             err.msgLengthIncorrect()
         word = (buf[0] << 8) | buf[1]
         #read header
         header = Message.getSeveralBit(word, 13, 3)
-        
         if (header == 1):               # INIT msg
             senderID = self.getSeveralBit(word, 10, 3)
             REPLY = self.getBit(word, 7)
@@ -143,6 +142,7 @@ class Message:
             mode = self.getSeveralBit(word, 4, 3)
             ROOT = self.getBit(word, 3)
             timestamp = self.getSeveralBit(word, 2, 3)
+            # listen only on that one module for a set time
         elif (header == 2):             # FOLLOWUP msg
             orientation = self.getSeveralBit(word, 11, 2)
             parity = self.getSeveralBit(word, 9, 2)
@@ -153,9 +153,11 @@ class Message:
             parityCalc = self.calcParity(word)
             if not (parity == parityCalc):
                 err.parityCheckIncorrect()
+            # listen only on that module for a set period of time
         elif (header == 4):             # ERROR msg
             scriptCode = self.getSeveralBit(word, 8, 5)
             errorCode = self.getSeveralBit(word, 5, 3)
+            err.decodeErrorMsg()
         elif (header == 5):             # INSTRUCT msg
             ROOT = 1
             updateCode = self.getSeveralBit(word, 8, 3)
@@ -168,12 +170,14 @@ class Message:
         elif (header == 6):             # SYSTEM UPDATE msg
             INSTDONE = self.getBit(word, 8)
             instructData = self.getSeveralBit(word, 0, 8)
-            # write the update script
-            # restart robot
+            # i cant implement the system rewrite for thing, but if new mode, then possible
+            hw.resetRobot()
+            
         elif (header == 4):              # POS msg
             POSDONE = self.getBit(word, 8)
             posX = self.getSeveralBit(word, 4, 4)
             posY = self.getSeveralBit(word, 0, 4)
+            # listen only on that module for a set period of time
         else:
             err.msgTypeIncorrect()
 
