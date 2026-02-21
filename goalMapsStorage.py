@@ -12,7 +12,7 @@ class GoalMapManager():
 
     def loadGoalMap(self, name):
         if name not in self.goalMaps:
-            err.goalMapNonExistent()
+            err.emptyGoalMap()
             return None
         return self.goalMaps[name]
 

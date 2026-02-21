@@ -2,11 +2,12 @@
 import messageBuild as msgBuild
 import controlHardware as hw
 import switchingConditions as switchCon
+import mapFunctions as mapFunc
 
 #Lib for script and error codes
 #... 101 = controlHardware
 #... 100 = errorHandling
-#... ... 00000 = ERROR contains a mistake
+#... ... 00000 = The msg contains a general mistake
 #... 011 = goalMapStorage
 #... ... 00000 = non existent goalMap
 #... 010 = mapFunctions
@@ -90,20 +91,18 @@ def decodeErrorMsg(msg):
         msgTypeIncorrect()
     # if busy then initiate polite gossip from switchCon
 
+#----- From errorHandling -----
 def errorMsgIncorrect():
-    print(f"[ERROR] 1000000000000 ERROR contains a mistake")
-    msgBuild.scriptCode = 4
-    msgBuild.errorCode = 0
-    msgBuild.createErrorMsg()
+    print(f"[ERROR] 1000000000000 The last msg contains a general mistake")
+    msgBuild.ACK = 0
+    hw.sendMsg(msgBuild.createACKMsg())
 
 #----- From goalMapsStorage -----
-def goalMapNonExistent():
-    print(f"[ERROR] 0110000000000 The goal map does not exist")
-    return None
 
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000
-    print(f"[ERROR] 0100000000000 Empty map")
+    print(f"[ERROR] 0100000000000 Empty map. Will create an empty new one")
+    mapFunc.createMap()
     return None
     
 def emptyGoalMap():     #head 11 script 00100 error 001

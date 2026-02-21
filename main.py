@@ -13,34 +13,48 @@ TIMER = 50
 #----- Listening phase variables -----
 MIN_LISTEN_TIMESTEP = 500
 MAX_LISTEN_TIMESTEP = 1000
+EXTRA_LISTENING_TIME_IDLE = 2
+LESS_LISTENING_TIME_ROOT = 2
 AMOUNT_MODULES = 4          # 4 RFID modules
 
-#----- INITIALIZATION -----
+#----- Initialization -----
 def init():
     node = switchCon.Node(NODE_ID)
     hw.initAllHw()
     print(f"[FYI] Robot is ready to play!")
     return node
 
+#----- Helper functions -----
 def delay(steps):
     for _ in range(steps):
         pass
 
 def calcListeningTime():
     # maybe alter the listening time length depending on IDLE and ROOT?
-    return random.randint(MIN_LISTEN_TIMESTEP, MAX_LISTEN_TIMESTEP)
+    if switchCon.IDLE:
+        return random.randint(MIN_LISTEN_TIMESTEP, MAX_LISTEN_TIMESTEP)*EXTRA_LISTENING_TIME_IDLE
+    elif switchCon.ROOT:
+        random.randint(MIN_LISTEN_TIMESTEP, MAX_LISTEN_TIMESTEP)/LESS_LISTENING_TIME_ROOT
+    else:
+        return random.randint(MIN_LISTEN_TIMESTEP, MAX_LISTEN_TIMESTEP)
 
-def listeningForMsg_onlyErrorAllowed(listeningTime, moduleNumber):
+def listeningForMsg_onlyErrorAndAckAllowed(listeningTime, moduleNumber):
     while listeningTime > 0:
         msg = hw.listenThroughModule(moduleNumber)
         if msg is not None:
-            if msgBuild.getHeader(msg) == 3: # ERROR
+            if msgBuild.getHeader(msg) == msgBuild.ERROR_HEADER: # ERROR
                 err.decodeErrorMsg()
-                # Abbruch of the think and restart?
+            elif msgBuild.getHeader(msg) == msgBuild.ACK_HEADER: # ACK
+                pass    
+                if msgBuild.getACK(msg):
+                    pass
+                else:
+                    msgBuild.decodeACK()
             else:
                 err.msgTypeIncorrect()    
         listeningTime -= 1
 
+#----- Main loop -----
 def main():
     node = init()
     while True:
@@ -61,15 +75,15 @@ def main():
         print(f"[FYI] Entering talking phase")
         module = hw.sendThroughRandomModule(msgBuild.createINITMsg())
         delay(TIMER)
-        listeningForMsg_onlyErrorAllowed(TIMER, module)
+        listeningForMsg_onlyErrorAndAckAllowed(TIMER, module)
         delay(TIMER)        
         hw.sendThroughModule(msgBuild.createPOSMsg(), module)
         delay(TIMER)
-        listeningForMsg_onlyErrorAllowed(TIMER, module)
+        listeningForMsg_onlyErrorAndAckAllowed(TIMER, module)
         delay(TIMER)
         hw.sendThroughModule(msgBuild.createFollowUpMsg(), module)
         delay(TIMER)
-        listeningForMsg_onlyErrorAllowed(TIMER, module)
+        listeningForMsg_onlyErrorAndAckAllowed(TIMER, module)
         delay(TIMER)
         # Cycle has been completed -> stay in the while-loop
 
