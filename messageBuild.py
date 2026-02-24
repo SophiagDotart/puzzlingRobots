@@ -139,26 +139,25 @@ class Message:
 
     def createAckMsg(self, ACK, msgType):
         msg = 0
-        msg = self.setSeveralBit(msg, 13, self.ACK_HEADER)
+        msg = self.setSeveralBit(msg, 13, 3, self.ACK_HEADER)
         msg = self.setBit(msg, 12)
         msg = self.setSeveralBit(msg, 5, 7, 0)                  # free is empty
         msg = self.setSeveralBit(msg, 0, 5, msgType)
         return msg
 
     @staticmethod    
-    def serializeMsg(msg:int, word) -> bytearray:
+    def serializeMsg(msg:int) -> bytearray:
         return bytearray([
-            (word >> 8) & 0xFF,
+            (msg >> 8) & 0xFF,
             msg & 0xFF
         ])
         # use as message = createMsg then rfid_payload = Message.serializeMsg
 
     @staticmethod
-    def checkIfCorrectLen(self, buf: bytearray):
+    def checkIfCorrectLen(buf: bytearray):
         if len(buf) != 2:
-            return False, None  # err.msgLengthIncorrect()
-        msg = (buf[0] << 8) | buf[1]
-        return True, msg
+            return None  # err.msgLengthIncorrect()
+        return (buf[0] << 8) | buf[1]
 
     #----- decode msgs -----
     def decodeINIT(self,msg):
@@ -187,7 +186,7 @@ class Message:
             mapData = self.getMap(msg)
             # verify parity
             parity = self.getSeveralBit(msg, 11, 2)         # get the parity value
-            self.setSeveralBit(msg, 11, 2, 0)               # zero that value s parity bits dont screw the parity check
+            msg = self.setSeveralBit(msg, 11, 2, 0)         # zero that value s parity bits dont screw the parity check
             if not parity == self.calcParity(msg):
                 #err.parityCheckIncorrect()
                 return {'type': 'FOLLOWUP',
@@ -255,7 +254,7 @@ class Message:
             updateData = self.getUpdateData(msg)
             # verify parity
             parity = self.getSeveralBit(msg, 11, 2)         # get the parity value
-            self.setSeveralBit(msg, 11, 2, 0)               # zero that value s parity bits dont screw the parity check
+            msg = self.setSeveralBit(msg, 11, 2, 0)         # zero that value s parity bits dont screw the parity check
             if not parity == self.calcParity(msg):          # check if the value that was sent is the same as the one calculated on the msg I rcv
                 return {'type': 'SYSUPDATE',
                         'updateCode': updateCode,
@@ -295,101 +294,101 @@ class Message:
         return self.getSeveralBit(word, 13, 3)
 
     def getSenderID(self, word):
-        if self.getHeader(word) is not self.INIT_HEADER:
+        if self.getHeader(word) != self.INIT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 9, 4)
         
     def getROOT(self, word):
-        if self.getHeader(word) is not self.INIT_HEADER:
+        if self.getHeader(word) != self.INIT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getBit(word, 8)
     
     def getMode(self, word):
-        if self.getHeader(word) is not self.INIT_HEADER:
+        if self.getHeader(word) != self.INIT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 4, 4)    
     
     def getTimestep(self, word):
-        if self.getHeader(word) is not self.INIT_HEADER:
+        if self.getHeader(word) != self.INIT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 4)  
 
     def getPOSDONE(self, word):
-        if self.getHeader(word) is not self.POS_HEADER:
+        if self.getHeader(word) != self.POS_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getBit(word, 8)
     
     def getPosX(self, word):
-        if self.getHeader(word) is not self.POS_HEADER:
+        if self.getHeader(word) != self.POS_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 4, 4)
     
     def getPosY(self, word):
-        if self.getHeader(word) is not self.POS_HEADER:
+        if self.getHeader(word) != self.POS_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 4)
     
     def getOrientation(self, word):
-        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
+        if self.getHeader(word) != self.FOLLOWUP_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 11, 2)  
 
     def getDONE(self, word):
-        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
+        if self.getHeader(word) != self.FOLLOWUP_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getBit(word, 8)
         
     def getMap(self, word):
-        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
+        if self.getHeader(word) != self.FOLLOWUP_HEADER:
             return None #err.msgTypeIncorrect()
         return Map.deserialize(self.getSeveralBit(word, 0, 8))
         
     def getScriptCode(self, word):
-        if self.getHeader(word) is not self.ERROR_HEADER:
+        if self.getHeader(word) != self.ERROR_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 8, 5)
         
     def getErrorCode(self, word):
-        if self.getHeader(word) is not self.ERROR_HEADER:
+        if self.getHeader(word) != self.ERROR_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 5, 3)
 
     def getExtraErrorBits(self, word):
-        if self.getHeader(word) is not self.ERROR_HEADER:
+        if self.getHeader(word) != self.ERROR_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 5)
     
     def getACK(self, word):
-        if self.getHeader(word) is not self.ACK_HEADER:
+        if self.getHeader(word) != self.ACK_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getBit(word, 12)
     
     def getLastMsgType(self, word):
-        if self.getHeader(word) is not self.ACK_HEADER:
+        if self.getHeader(word) != self.ACK_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 5)
 
     def getUpdateCode(self, word):
-        if self.getHeader(word) is not self.SYSUPDATE_HEADER:
+        if self.getHeader(word) != self.SYSUPDATE_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 8, 3)
     
     def getUpdateData(self, word):
-        if self.getHeader(word) is not self.SYSUPDATE_HEADER:
+        if self.getHeader(word) != self.SYSUPDATE_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 8)
     
     def getInstMode(self, word):
-        if self.getHeader(word) is not self.INSTRUCT_HEADER:
+        if self.getHeader(word) != self.INSTRUCT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 9, 4)
     
     def getINSTDONE(self, word):
-        if self.getHeader(word) is not self.INSTRUCT_HEADER:
+        if self.getHeader(word) != self.INSTRUCT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getBit(word, 8)
     
     def getInstructData(self, word):
-        if self.getHeader(word) is not self.INSTRUCT_HEADER:
+        if self.getHeader(word) != self.INSTRUCT_HEADER:
             return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 8)
