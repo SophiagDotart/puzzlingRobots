@@ -19,8 +19,7 @@
 #... implement proper checksum
 #... compress map fragments so it can can have more than 64 spaces
 
-import controlHardware as hw 
-import errorHandling as err
+from mapFunctions import Map
 
 class Message:
 
@@ -98,30 +97,33 @@ class Message:
         msg = Message.setSeveralBit(msg, 11, 2, orientation)
         msg = Message.setBit(msg, 8, DONE)
         msg = Message.setSeveralBit(msg, 7, 8, mapData)
-        
-        msg = Message.setSeveralBit(msg, 9, 2, self.calcParity(msg))
+        # add parity
+        msg = self.setSeveralBit(msg, 9, 2, 0)          # make sure parity bits do not influence in the calc product
+        msg = self.setSeveralBit(msg, 9, 2, self.calcParity(msg))
         return msg
         
     def createErrorMsg(self, scriptCode, errorCode):
         msg = 0 
         msg = Message.setSeveralBit(msg, 13, 3, self.ERROR_HEADER)
-        msg = Message.setSeveralBit(msg, 8, 3, scriptCode)  
-        msg = Message.setSeveralBit(msg, 5, 5, errorCode)
+        msg = Message.setSeveralBit(msg, 8, 5, scriptCode)  
+        msg = Message.setSeveralBit(msg, 5, 3, errorCode)
         msg = Message.setSeveralBit(msg, 0, 5, self.extraErrorBits)
         return msg
 
-    def createSystemUpdateMsg(self):
+    def createSystemUpdateMsg(self, updateCode, updateData):
         msg = 0 
         msg = Message.setSeveralBit(msg, 13, 3, self.SYSUPDATE_HEADER)
-        msg = Message.setSeveralBit(msg, 8, 3, self.updateCode)  
-        msg = Message.setSeveralBit(msg, 5, 5, self.updateData)
-        msg = Message.setSeveralBit(msg, 9, 2, self.calcParity(msg))
+        msg = Message.setSeveralBit(msg, 8, 3, updateCode)  
+        msg = Message.setSeveralBit(msg, 5, 8, updateData)
+        # add parity
+        msg = self.setSeveralBit(msg, 11, 2, 0)          # make sure parity bits do not influence in the calc product
+        msg = self.setSeveralBit(msg, 11, 2, self.calcParity(msg))
         return msg   
     
-    def createInstructMsg(self, INSTDONE, instructData, updateType):
+    def createInstructMsg(self, INSTDONE, instructData, instMode):
         msg = 0
         msg = Message.setSeveralBit(msg, 13, 3, self.INSTRUCT_HEADER)
-        msg = Message.setSeveralBit(msg, 9, 4, updateType)
+        msg = Message.setSeveralBit(msg, 9, 4, instMode)
         msg = Message.setBit(msg, 8, INSTDONE)
         msg = Message.setSeveralBit(msg, 7, 8, instructData)
         return msg
@@ -137,9 +139,9 @@ class Message:
 
     def createAckMsg(self, ACK, msgType):
         msg = 0
-        msg = self.setBit(msg, 8, self.ACK_HEADER)
+        msg = self.setSeveralBit(msg, 13, self.ACK_HEADER)
+        msg = self.setBit(msg, 12)
         msg = self.setSeveralBit(msg, 5, 7, 0)                  # free is empty
-        # ACK is missing !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         msg = self.setSeveralBit(msg, 0, 5, msgType)
         return msg
 
@@ -154,8 +156,7 @@ class Message:
     @staticmethod
     def checkIfCorrectLen(self, buf: bytearray):
         if len(buf) != 2:
-            err.msgLengthIncorrect()
-            return False, None
+            return False, None  # err.msgLengthIncorrect()
         msg = (buf[0] << 8) | buf[1]
         return True, msg
 
@@ -163,230 +164,232 @@ class Message:
     def decodeINIT(self,msg):
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            senderID = self.getSeveralBit(word, 10, 4)
-            ROOT = self.getBit(word, 8)
-            mode = self.getSeveralBit(word, 4, 4)
-            timestamp = self.getSeveralBit(word, 0, 4)
-            return senderID, ROOT, mode, timestamp
-        return None, None, None, None
+            senderID = self.getSenderID(msg)
+            ROOT = self.getROOT(msg)
+            mode = self.getMode(msg)
+            timestamp = self.getTimestep(msg)
+            return {'type' : 'INIT',
+                    'senderId': senderID,
+                    'ROOT': ROOT,
+                    'mode': mode,
+                    'timestamp': timestamp}
+        return {'type': None,
+                'senderID': None,
+                'ROOT': None,
+                'mode': None,
+                'timestamp': None}
     
     def decodeFOLLOWUP(self, msg):
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            orientation = self.getSeveralBit(msg, 11, 2)
-            parity = self.getSeveralBit(msg, 9, 2)
-            DONE = self.getBit(msg, 8)
-            mapData = self.getSeveralBit(msg, 0, 8)
+            orientation = self.getOrientation(msg)
+            DONE = self.getDONE(msg)
+            mapData = self.getMap(msg)
             # verify parity
-            msg = self.getSeveralBit(msg, 9, 2, 2)
-            parityCalc = self.calcParity(msg)
-            if not (parity == parityCalc):
-                err.parityCheckIncorrect()
-            return orientation, DONE, mapData
-        return None, None, None
-        # listen only on that module for a set period of time
+            parity = self.getSeveralBit(msg, 11, 2)         # get the parity value
+            self.setSeveralBit(msg, 11, 2, 0)               # zero that value s parity bits dont screw the parity check
+            if not parity == self.calcParity(msg):
+                #err.parityCheckIncorrect()
+                return {'type': 'FOLLOWUP',
+                        'orientation': None,
+                        'DONE': None,
+                        'mapData': None,
+                        'parity': False}
+            return {'type': 'FOLLOWUP',
+                    'orientation': orientation,
+                    'DONE':DONE,
+                    'mapData': mapData,
+                    'parity': True}
+        return {'type': 'FOLLOWUP',
+                'orientation': None,
+                'DONE': None,
+                'mapData': None,
+                'parity': None}
     
     def decodePOS(self, msg):
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            POSDONE = self.getBit(msg, 8)
-            posX = self.getSeveralBit(msg, 4, 4)
-            posY = self.getSeveralBit(msg, 0, 4)
-            return POSDONE, posX, posY
-        return None, None, None
-        # listen only on that module for a set period of time
+            POSDONE = self.getPOSDONE(msg)
+            posX = self.getPosX(msg)
+            posY = self.getPosY(msg)
+            return {'type': 'POS',
+                    'POSDONE': POSDONE,
+                    'posX': posX,
+                    'posY': posY}
+        return {'type': 'POS',
+                    'POSDONE': None,
+                    'posX': None,
+                    'posY': None}
     
-    def decodeERROR(self, msg):
+    def decodeERROR(self, msg):                 # decode the meaning of the error in err.decodeERR()
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            scriptCode = self.getSeveralBit(word, 8, 5)
-            errorCode = self.getSeveralBit(word, 5, 3)
-            return scriptCode, errorCode
-        return None, None
-        # decode error in err.decodeERR()
+            scriptCode = self.getScriptCode(msg)
+            errorCode = self.getErrorCode(msg)
+            return {'type': 'ERROR',
+                    'scriptCode': scriptCode,
+                    'errorCode': errorCode}
+        return {'type': 'ERROR',
+                'scriptCode': None,
+                'errorCode': None}
     
     def decodeINSTRUCT(self, msg):
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            ROOT = 1
-            updateCode = self.getSeveralBit(word, 8, 3)
-            updateData = self.getSeveralBit(word, 0, 8)
-            # verify parity
-            word = self.setSeveralBit(word, 11, 2, 0)
-            parityCalc = self.calcParity(word)
-            if not (parity == parityCalc):
-                err.parityCheckIncorrect()
-                return None, None
-            else:
-                return updateCode, updateData
-        return None, None
+            instMode = self.getInstMode(msg)
+            INSTDONE = self.getINSTDONE(msg)
+            instructData = self.getInstructData(msg)
+            return {'type': 'INSTRUCT',
+                    'updateCode': instMode,
+                    'INSTDONE': INSTDONE,
+                    'instructData': instructData}
+        return {'type': 'INSTRUCT',
+                'updateCode': None,
+                'INSTDONE': None,
+                'instructData': None}
 
     def decodeSysUpdateMsg(self, msg):
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            # check whether really sysupmsg ? 
-            INSTDONE = self.getBit(msg, 8)
-            instructData = self.getSeveralBit(msg, 0, 8)
-            scriptCode = self.getSeveralBit(msg, 9, 3)
-            if scriptCode == self.SYSUPDATE_NEWGOALMAP:
+            updateCode = self.getUpdateCode(msg)
+            updateData = self.getUpdateData(msg)
+            # verify parity
+            parity = self.getSeveralBit(msg, 11, 2)         # get the parity value
+            self.setSeveralBit(msg, 11, 2, 0)               # zero that value s parity bits dont screw the parity check
+            if not parity == self.calcParity(msg):          # check if the value that was sent is the same as the one calculated on the msg I rcv
+                return {'type': 'SYSUPDATE',
+                        'updateCode': updateCode,
+                        'updateData': updateData,
+                        'parityCheck': False}
+            if updateCode == self.SYSUPDATE_NEWGOALMAP:     # check for updateCode
                 updateType = 2
-            elif scriptCode == self.SYSUPDATE_COMPLETEUPDATE:
+            elif updateCode == self.SYSUPDATE_COMPLETEUPDATE:
                 updateType = 3
             else:
-                None
-            return INSTDONE, instructData, updateType
-        return None, None, None
+                return {'type': 'SYSUPDATE',
+                        'updateType': None,
+                        'parityCheck': True}
+            return {'type': 'SYSUPDATE',
+                    'updateType': updateType,
+                    'updateData': updateData,
+                    'parityCheck': True}
+        return {'type': 'SYSUPDATE',
+                'updateCode': None,
+                'updateData': None,
+                'parityCheck': None}
 
     def decodeACK(self, msg):
         msg = self.checkIfCorrectLen(msg)
         if msg is not None:
-            ACK = self.getBit(msg, 12)
-            msgType = self.getSeveralBit(msg, 0, 5)
-            return ACK, msgType
-        # all of this belongs in main!!!!!!!!!!
-        msgTypeToSend = self.getLastMsgType()
-        if msgTypeToSend == self.INIT_HEADER:
-            hw.sendMsg(self.createInitMsg())
-        elif msgTypeToSend == self.FOLLOWUP_HEADER:
-            hw.sendMsg(self.createFollowUpMsg())
-        elif msgTypeToSend == self.ERROR_HEADER:
-            hw.sendMsg(self.createErrorMsg())
-        elif msgTypeToSend == self.POS_HEADER:
-            hw.sendMsg(self.createPosMsg())
-        elif msgTypeToSend == self.INSTRUCT_HEADER:
-            hw.sendMsg(self.createInstructMsg())
-        elif msgTypeToSend == self.SYSUPDATE_HEADER:
-            hw.sendMsg(self.createSystemUpdateMsg())
-        else:
-            hw.sendMsg(self.createAckMsg())
-        return None, None
+            ACK = self.getACK(msg)
+            msgType = self.getMsgType(msg)
+            return {'type': 'ACK',
+                    'ACK': ACK,
+                    'msgType': msgType}
+        return {'type': 'ACK',
+                'ACK': None,
+                'msgType': None}
 
-# ----- Getters -----
-    #def getSenderSourceType(self, word):
-    #    return self.getBit(word, 15)
-    
-    def getMsgType(self, word):
-        if(self.getSenderSourceType(word,16) == 0): # sent by a robot
-            if(self.getSeveralBit(word, 14, 2) == 0x10): # follow up
-                pass
-            elif(self.getSeveralBit(word, 14, 2) == 0x11): # error
-                pass
-            elif(self.getSeveralBit(word, 14, 2) == 0x01):   # init
-                pass
-            else:
-                err.msgTypeIncorrect()
-        elif(self.getSenderSourceType(word,16) == 0):        # sent by the user
-            if(self.getSeveralBit(word, 14, 2) == 0x01):     # instruction
-                pass
-            elif(self.getSeveralBit(word, 14, 2) == 0x10):   # system update
-                pass
-            else:
-                err.msgTypeIncorrect()
-        else:
-            err.msgTypeIncorrect()        
-
+# ----- Getters -----    
     def getHeader(self, word):
         return self.getSeveralBit(word, 13, 3)
 
     def getSenderID(self, word):
         if self.getHeader(word) is not self.INIT_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 9, 4)
         
     def getROOT(self, word):
         if self.getHeader(word) is not self.INIT_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getBit(word, 8)
-        
-    def getDONE(self, word):
-        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
-            err.msgTypeIncorrect()
-        return self.getBit(word, 8)
-        
+    
     def getMode(self, word):
         if self.getHeader(word) is not self.INIT_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 4, 4)    
     
     def getTimestep(self, word):
         if self.getHeader(word) is not self.INIT_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 0, 4)
-
-    def getOrientation(self, word):
-        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 11, 2)
-        
-    def getMap(self, word):
-        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
-            err.msgTypeIncorrect()
-        return self.deserialize(self.getSeveralBit(word, 0, 8))
-        
-    def getScriptCode(self, word):
-        if self.getHeader(word) is not self.ERROR_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 8, 5)
-        
-    def getErrorCode(self, word):
-        if self.getHeader(word) is not self.ERROR_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 5, 3)
-    
-    # Message.setSeveralBit(msg, 0, 5, self.extraErrorBits)
-
-    def getExtraErrorBits(self, word):
-        if self.getHeader(word) is not self.ERROR_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 0, 5)
-    
-    def getUpdateCode(self, word):
-        if self.getHeader(word) is not self.SYSUPDATE_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 8, 3)
-    
-    def getUpdateData(self, word):
-        if self.getHeader(word) is not self.SYSUPDATE_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 0, 8)
-    
-    def getInstMode(self, word):
-        if self.getHeader(word) is not self.INSTRUCT_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 9, 4)
-    
-    def getINSTDONE(self, word):
-        if self.getHeader(word) is not self.INSTRUCT_HEADER:
-            err.msgTypeIncorrect()
-        return self.getBit(word, 8)
-    
-    def getInstructData(self, word):
-        if self.getHeader(word) is not self.INSTRUCT_HEADER:
-            err.msgTypeIncorrect()
-        return self.getSeveralBit(word, 0, 8)
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 0, 4)  
 
     def getPOSDONE(self, word):
         if self.getHeader(word) is not self.POS_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getBit(word, 8)
     
     def getPosX(self, word):
         if self.getHeader(word) is not self.POS_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 4, 4)
     
     def getPosY(self, word):
         if self.getHeader(word) is not self.POS_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 4)
+    
+    def getOrientation(self, word):
+        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 11, 2)  
+
+    def getDONE(self, word):
+        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getBit(word, 8)
+        
+    def getMap(self, word):
+        if self.getHeader(word) is not self.FOLLOWUP_HEADER:
+            return None #err.msgTypeIncorrect()
+        return Map.deserialize(self.getSeveralBit(word, 0, 8))
+        
+    def getScriptCode(self, word):
+        if self.getHeader(word) is not self.ERROR_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 8, 5)
+        
+    def getErrorCode(self, word):
+        if self.getHeader(word) is not self.ERROR_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 5, 3)
+
+    def getExtraErrorBits(self, word):
+        if self.getHeader(word) is not self.ERROR_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 0, 5)
     
     def getACK(self, word):
         if self.getHeader(word) is not self.ACK_HEADER:
-            err.msgTypeIncorrect()
-        return self.getBit(word, 8)
+            return None #err.msgTypeIncorrect()
+        return self.getBit(word, 12)
     
     def getLastMsgType(self, word):
         if self.getHeader(word) is not self.ACK_HEADER:
-            err.msgTypeIncorrect()
+            return None #err.msgTypeIncorrect()
         return self.getSeveralBit(word, 0, 5)
+
+    def getUpdateCode(self, word):
+        if self.getHeader(word) is not self.SYSUPDATE_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 8, 3)
     
+    def getUpdateData(self, word):
+        if self.getHeader(word) is not self.SYSUPDATE_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 0, 8)
+    
+    def getInstMode(self, word):
+        if self.getHeader(word) is not self.INSTRUCT_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 9, 4)
+    
+    def getINSTDONE(self, word):
+        if self.getHeader(word) is not self.INSTRUCT_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getBit(word, 8)
+    
+    def getInstructData(self, word):
+        if self.getHeader(word) is not self.INSTRUCT_HEADER:
+            return None #err.msgTypeIncorrect()
+        return self.getSeveralBit(word, 0, 8)

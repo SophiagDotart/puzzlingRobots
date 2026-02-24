@@ -9,7 +9,7 @@ import mapFunctions as mapFunc
 #... 100 = errorHandling
 #... ... 00000 = The msg contains a general mistake
 #... 011 = goalMapStorage
-#... ... 00000 = non existent goalMap
+#... ... 00000 = failed to add a new goalMap
 #... 010 = mapFunctions
 #... ... 00000 = the map is missing
 #... ... 00001 = the goal map is missing
@@ -104,6 +104,10 @@ def errorMsgIncorrect():
     hw.sendMsg(msgBuild.createACKMsg())
 
 #----- From goalMapsStorage -----
+def failedToAddGoalMap():
+    print(f"[ERROR] 0110000000000 Failed to add new goalMap")
+    # ask to resend msg
+    return None
 
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000

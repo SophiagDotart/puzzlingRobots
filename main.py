@@ -64,6 +64,22 @@ def decodeMsg(node, goalMapLib, msg):
         # listen only on that module for a set period of time
     elif header == msgBuild.ACK_HEADER:
         decodedMsg = msgBuild.decodeACKMsg(msg)  
+        # only if ACK is False
+        msgTypeToSend = decodedMsg['msgType']
+        if msgTypeToSend == msgBuild.INIT_HEADER:
+            hw.sendMsg(node.createInitMsg(node.senderID, node.ROOT, node.mode, node.timestamp))
+        elif msgTypeToSend == msgBuild.FOLLOWUP_HEADER:
+            hw.sendMsg(node.createFollowUpMsg(node.orientation, node.DONE, node.mapData))
+        elif msgTypeToSend == msgBuild.ERROR_HEADER:
+            hw.sendMsg(node.createErrorMsg(node.scriptCode, node.errorCode))
+        elif msgTypeToSend == msgBuild.POS_HEADER:
+            hw.sendMsg(node.createPosMsg(node.POSDONE, node.posX, node.posY))
+        elif msgTypeToSend == msgBuild.INSTRUCT_HEADER:
+            hw.sendMsg(node.createInstructMsg(node.INSTDONE, node.instructData, node.updateType))
+        elif msgTypeToSend == msgBuild.SYSUPDATE_HEADER:
+            hw.sendMsg(node.createSystemUpdateMsg(node.updateCode, node.updateData))
+        else:
+            hw.sendMsg(node.createAckMsg(decodedMsg['ACK'], decodedMsg['msgType']))
         # react to it and possibly resend a msg
     elif header == msgBuild.POS_HEADER:
         decodedMsg = msgBuild.decodePOSMsg(msg)
@@ -94,7 +110,6 @@ def decodeMsg(node, goalMapLib, msg):
             #keep listening on that module only
             pass
             # if timers out: sendMsg(msgBuild.createAckMsg(please repeat the last msg))
-       
     else:
         err.msgTypeIncorrect()
 
