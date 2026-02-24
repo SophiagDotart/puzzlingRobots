@@ -40,12 +40,12 @@ class Node:
         self.delayIfBusy = 0
         self.updateCode = 1 
         self.lastRcvMsgHeader = None
+        self.mapHandler = Map()
         print(f"[NEW] Node {self.id} was created")
         # For statistics
         self.lastUpdate = 0
         self.sentMsgs = 0
         self.rcvMsgs = 0
-        self.mapHandler = Map()
 
     #----- Auxiliary functions -----
     def becomeRoot(self):          
@@ -93,25 +93,33 @@ class Node:
         else:
             err.messageSourceIncorrect()
     
-    def instructRcv(self, msg):
+    def instructRcv(self, msg): # reacts directly to INSTRUCT
         self.IDLE = 0
         self.ROOT = 1
         mapFunc.createMap(msg)
-        self.mode = msg["mode"]
+        self.mode = msgBuild.getMode(msg)
         self.t += 1
         print(f"[FYI] Node {self.id} received instructions from card, mode = {self.mode}")
 
-    def msgRcv(self, msg, receiver):
-        # UPDATE > IDLE > BUSY > ROOT > MODE > TIMESTAMPS
-        if msgBuild.getUpdateCode()> self.updateCode:
-            print(f"[ERROR] Update structure not implemented")
-            pass
-        elif (self.IDLE):
+    def updateRcv(self, msg):   # reacts to UPDATESYSTEM
+        # check first wether its an additional goalMap!
+        if msg == msgBuild.codeForCompleteSystemUpdate:        # check wether its a system update 
+            if msgBuild.getUpdateCode()> self.updateCode:
+                print(f"[ERROR] Update structure not implemented")
+                return True
+        elif msg == msgBuild.codeForNewGoalMap:                 # it was just a new goalmap
+            return False
+        else:
+            return None                                         # Wtf did you give me?
+                       
+
+    def msgRcv(self, msg):    # reacts to INIT
+        # IDLE > BUSY > ROOT > MODE > TIMESTAMPS
+        if (self.IDLE):
             self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
             print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()}")
         else:
             if self.BUSY:
-                self.msgQueue.append(msg)
                 err.receiverIsBusy()
             else:
                 self.BUSY = 1

@@ -26,6 +26,11 @@ import mapFunctions as mapFunc
 #... ... 00010 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
 #... ... 00011 = receiver is ROOT
 
+def raiseError(result):
+    if result == errorCode.modeDifferent:
+        modeIsDifferent()
+    pass
+
 def decodeErrorMsg(msg):
     header = msgBuild.getHeader(msg)
     errorCode = msgBuild.getErrorCode(msg)
@@ -42,7 +47,8 @@ def decodeErrorMsg(msg):
         elif errorCode == 3:
             if switchCon.ROOT:
                 return
-            #request POS and FOLLOWUP
+            hw.sendMsg(msgBuild.createPOSMsg())
+            hw.sendMsg(msgBuild.createFollowupMsg())
         else:
             errorMsgIncorrect()
     elif header == 1:

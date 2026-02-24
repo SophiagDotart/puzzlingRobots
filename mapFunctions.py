@@ -63,6 +63,7 @@ class Map:
         print(f"[FYI] Node {self.id} updated it's position to ({senderX}, {senderY})")
         
     #----- (De)compress the maps -----
+    @staticmethod
     def compressMapToByteArray(self, ogMap: dict):      # only the cards have a dict
         if not ogMap:
             err.emptyMap()
@@ -143,6 +144,10 @@ class Map:
         idx = (yPos - miny) * width + (xPos - minx)       # Convert (x, y) → flat array index
         byte = self.compMap[idx]
         return self.byteToTile.get(byte, "?")
+
+    def setTileInCompressedMap(self, posX, posY):
+        #if correct then attach the square, incorrect is X, else err.wrongPosition()
+        pass
 
     def attachmentAttempt(self, msg):      
         # to check if the node is not being attached in a forbidden position

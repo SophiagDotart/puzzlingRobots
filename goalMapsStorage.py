@@ -1,18 +1,26 @@
-# Example goalMaps for a swarm of 6
-import errorHandling as err
+# goalMapStorage (aka goalMapStore)
+# Tasks:
+#   - store all goalMaps
+#   - return goalMaps in a way that is directly comparable to the current map
+#   - add goalMaps to the library when received via communication modules
+# Example goalMaps for a swarm of at least 6 members
+
+from mapFunctions import Map        # ONLY to use it's staticmethod utility functions
 
 class GoalMapManager():
-    def __init__(self, singleMap):
-        self.singleMap = singleMap   
+    def __init__(self):
         self.goalMaps = {}          # name = (compressedMap, margins) to satisfy map architecture from mapFunc
 
     def addGoalMap(self, name, dictGoalMap):
-        compressedGoalMap, margins = self.singleMap.compressMapToByteArray(dictGoalMap) # here we also get the margins from the mapFunc
-        self.goalMaps[name] = (compressedGoalMap[:], margins)
+        newGoalMap, margins = Map.compressMapToByteArray(dictGoalMap)
+        if newGoalMap is None or margins is None:
+            return False            # compression failed, ERROR - failed to add new goalMap
+        self.goalMaps[name] = (newGoalMap[:], margins)
+        print(f"[FYI] A new goalMap was added called {name}")
+        return True                 # added map successful
 
     def loadGoalMap(self, name):
         if name not in self.goalMaps:
-            err.emptyGoalMap()
             return None
         return self.goalMaps[name]
 
