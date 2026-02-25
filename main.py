@@ -63,6 +63,8 @@ def listeningForMsg_onlyErrorAndAckAllowed(listeningTime, moduleNumber):
     return False
 
 def decodeMsg(node, goalMapLib, msg, sensorNumber):
+    if not msgBuild.Message.checkIfCorrectLen(msg):
+        handleError(err.msgLengthIncorrect())
     header = msgBuild.Message.getHeader(msg)
     if header == msgBuild.Message.INIT_HEADER:
         decodedMsg = msgBuild.Message.decodeINITMsg(msg)
@@ -71,7 +73,7 @@ def decodeMsg(node, goalMapLib, msg, sensorNumber):
     elif header == msgBuild.Message.ACK_HEADER:
         decodedMsg = msgBuild.Message.decodeACKMsg(msg)  
         if decodedMsg['ACK']:
-            lastMsg = msgBuild.Message.getLastMsgType()
+            lastMsg = msgBuild.Message.getLastMsgType(msg)
             if lastMsg == msgBuild.Message.INIT_HEADER:
                 hw.sendMsg(msgBuild.Message.createPosMsg(POSDONE = node.POSDONE, posX = node.posX, posY = node.posY))
             elif lastMsg == msgBuild.Message.POS_HEADER:
@@ -105,12 +107,14 @@ def decodeMsg(node, goalMapLib, msg, sensorNumber):
     elif header == msgBuild.Message.FOLLOWUP_HEADER:
         decodedMsg = msgBuild.Message.decodeFOLLOWUPMsg(msg)
         if not decodedMsg['parityCheck']:
-            err.parityCheckIncorrect()
-            hw.sendMsg(msgBuild.Message.createAckMsg(ACK = False, msgType = msgBuild.Message.FOLLOWUP_HEADER))
+            handleError(err.parityCheckIncorrect())
         hw.sendMsg(msgBuild.Message.createAckMsg(ACK = True, msgType = msgBuild.Message.FOLLOWUP_HEADER))
-        listeningForMsg_onlyErrorAndAckAllowed(TIMER, sensorNumber) #keep listening for the next msg. 
-        # Maybe put an error stopper in by defining that the msg received before this one had to be either an ACK, ERR, POS
-        # possible ERROR msgs
+        # sender is done transmitting all information yet. Wait and listen
+        success = listeningForMsg_onlyErrorAndAckAllowed(TIMER, sensorNumber)
+        if not success:
+                handleError(err.timeout())
+                return
+        listeningForMsg_onlyErrorAndAckAllowed(TIMER, sensorNumber) #keep listening for the next msg
     elif header == msgBuild.Message.ERROR_HEADER:
         decodedMsg = msgBuild.Message.decodeErrorMsg(msg)
         # make a reaction function to all possible errors
@@ -121,32 +125,63 @@ def decodeMsg(node, goalMapLib, msg, sensorNumber):
     elif header == msgBuild.Message.SYSUPDATE_HEADER:
         decodedMsg = msgBuild.Message.decodeSysUpdateMsg(msg)   # decodedMsg contains: updateType, INSTDONE, instructData
         if not decodedMsg['parityCheck']:
-            err.parityCheckIncorrect()
-            hw.sendMsg(msgBuild.Message.createAckMsg(False, msgBuild.Message.SYSUPDATE_HEADER))
+            handleError(err.parityCheckIncorrect()) 
         node.ROOT = True
         if decodedMsg['updateType'] == msgBuild.Message.SYSUPDATE_COMPLETEUPDATE:       # its a goalMap -> add it to the lib
             addedNewGoalMap = goalMapLib.addGoalMap(dictGoalMap = mapFunc.serialize(decodedMsg['updateData']) , name = 'xyz')   
             if addedNewGoalMap is None:
-                errorCode, scriptCode = err.failedToAddGoalMap()
-                hw.sendMsg(msgBuild.Message.createErrorMsg(errorCode, scriptCode))
-                return
+                handleError(err.failedToAddGoalMap())
+                return False
         elif decodedMsg['updateType'] == msgBuild.Message.SYSUPDATE_NEWGOALMAP:        
             # if it returns True then its a proper system update which is not implemented yet
             # i cant implement the system rewrite for thing, but if new mode, then possible
             print(f"[FYI] Feature not implemented yet. Please use another feature")
-        
+            return True # so that it does not stop doing its job
         if decodedMsg['INSTDONE']:
             hw.sendMsg(msgBuild.Message.createInstructMsg(INSTDONE = True, instructData = decodedMsg['instructData'], instMode = decodedMsg['updateType'])) #keep spreading the update!
+            # spread the user instruction
+            return True
         else:
             # sender is done transmitting all information yet. Wait and listen
             success = listeningForMsg_onlyErrorAndAckAllowed(TIMER, sensorNumber)
             if not success:
-                errorCode, scriptCode = err.timeout()
-                return
+                handleError(err.timeout())
+                return False
     else:
-        errorCode, scriptCode = err.msgTypeIncorrect()              # I dont recognize this header
-        hw.sendMsg(msgBuild.Message.createErrorMsg(errorCode, scriptCode))
+        handleError(err.msgTypeIncorrect() )
         return
+
+def handleError(node, error):
+    action = error['action']
+    if action == err.ACTION_SENDERRORMSG:
+        if not (error['scriptCode'] is None or error['errorCode'] is None):
+            hw.sendThroughModule(msgBuild.Message.createErrorMsg(errorCode = error['errorCode'], scriptCode = error['scriptCode']), node.moduleNumber)
+            print(f"[FYI] Sent the error to the sender")
+        else:
+            err.unknownError()
+    elif action == err.ACTION_SENDPLSREPEATMSG:
+        if error['scriptCode'] is None or error['errorCode'] is None:
+            hw.sendThroughModule(msgBuild.Message.createACKMsg(ACK = False, msgType = error['scriptERROR']), node.moduleNumber)
+            print(f"[FYI] Sent an ACk msg to the sender to please resend the last msg")
+        else:
+            err.unknownError()   
+    elif action == err.ACTION_IGNORE:
+        print(f"[FYI] I ignored the error.Returning to main")   
+    elif action == err.ACTION_SENDINITMSG:
+        hw.sendThroughModule(msgBuild.Message.createInitMsg(senderID = NODE_ID, ROOT = node.ROOT, mode = node.mode, timestamp = node.timestamp), node.moduleNumber) 
+    elif action == err.ACTION_RESETROBOT:
+        print(f"[FYI] Will restart the robot now")
+        hw.resetRobot()
+    elif action == err.ACTION_CORRECTSTH:
+        thatSth = error['actionCode']
+        if thatSth == err.ACTION_CORRECTSTH_RESTARTMAP:
+            node.mapData = bytearray()
+            print(f"[FYI] Restarted the map and the timestep")
+        elif action == err.ACTION_CORRECTSTH_TILEINCORRECT:
+            hw.signalThatsWrong()
+            # put a signal in map that that tile was laid
+        else:
+            handleError(err.unknownError())
 
 #----- Main loop -----
 def main():
@@ -165,20 +200,20 @@ def main():
         #the msg Im using here has to be fresh from the sender! Find a way
         # talking phase
         print(f"[FYI] Entering talking phase")
-        module = hw.sendThroughRandomModule(msgBuild.Message.createINITMsg(senderID = NODE_ID, ROOT = node.ROOT, mode = node.mode, timestamp = node.timestamp))
+        module = hw.sendThroughRandomModule(msgBuild.Message.createInitMsg(senderID = NODE_ID, ROOT = node.ROOT, mode = node.mode, timestamp = node.timestamp))
         delay(TIMER)
         if not listeningForMsg_onlyErrorAndAckAllowed(TIMER, module):
-            err.timeout()
+            handleError(err.timeout())
         delay(TIMER)        
         hw.sendThroughModule(msgBuild.Message.createPOSMsg(POSDONE = node.POSDONE, posX = node.posX, posY = node.posY), module)
         delay(TIMER)
         if not listeningForMsg_onlyErrorAndAckAllowed(TIMER, module):
-            err.timeout()
+            handleError(err.timeout())
         delay(TIMER)
         hw.sendThroughModule((msgBuild.Message.createFollowUpMsg(orientation = node.orientation, DONE = node.DONE, mapData = node.mapData)), module)
         delay(TIMER)
         if not listeningForMsg_onlyErrorAndAckAllowed(TIMER, module):
-            err.timeout()
+            handleError(err.timeout())
         delay(TIMER)
         # Cycle has been completed -> stay in the while-loop
 

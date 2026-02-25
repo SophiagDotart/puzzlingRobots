@@ -162,7 +162,7 @@ class Message:
     @staticmethod
     def checkIfCorrectLen(buf: bytearray):
         if len(buf) != 2:
-            return None  # err.msgLengthIncorrect()
+            return False  # err.msgLengthIncorrect()
         return (buf[0] << 8) | buf[1]
 
     #----- decode msgs -----

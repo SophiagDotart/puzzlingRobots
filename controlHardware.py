@@ -14,7 +14,7 @@ class Hw:
         module = random.randint(0, self.AMOUNT_MODULES - 1)
         self.sendThroughModule(msg)
 
-    def sendThroughModule(self, msg):
+    def sendThroughModule(self, msg, module):
         pass
 
     def readModule(self, number):
@@ -25,3 +25,7 @@ class Hw:
 
     def resetRobot(self):
         self.RESET_PIN = 1
+
+    def signalThatsWrong(self):
+        pass
+        # maybe light up sth to let the user know?
