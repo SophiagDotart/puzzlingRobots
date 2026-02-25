@@ -1,13 +1,10 @@
-# Script to handle the error once they appear.
-import messageBuild as msgBuild
-import controlHardware as hw
-import switchingConditions as switchCon
-import mapFunctions as mapFunc
+# Script to store, return, and identify the errors
 
 #Lib for script and error codes
 #... 101 = controlHardware
-#... 100 = errorHandling
+#... 100 = errorHandling/ main -> general errors
 #... ... 00000 = The msg contains a general mistake
+#... ... 00001 = Timeout
 #... 011 = goalMapStorage
 #... ... 00000 = failed to add a new goalMap
 #... 010 = mapFunctions
@@ -26,100 +23,108 @@ import mapFunctions as mapFunc
 #... ... 00010 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
 #... ... 00011 = receiver is ROOT
 
-def raiseError(result):
-    if result == errorCode.modeDifferent:
-        modeIsDifferent()
-    pass
+SCRIPTCODE_SWITCHCON = 0
+SCRIPTCODE_MSGBUILD = 1
+SCRIPTCODE_MAPFUNC = 2
+SCRIPTCODE_GOALMAPSTORE = 3
+SCRIPTCODE_ERROR = 4
+SCRIPTCODE_HW = 5
 
-def decodeErrorMsg(msg):
-    header = msgBuild.getHeader(msg)
-    errorCode = msgBuild.getErrorCode(msg)
-    extra = msgBuild.getExtraErrorBits(msg)
-    if header == 0:
+def decodeErrorMsg(scriptCode, errorCode):
+    if scriptCode == 0:
         # switchCon error
         if errorCode == 0: 
-            switchCon.politeGossipWait()
+            return receiverIsBusy()
         elif errorCode == 1:
-            return # to the main loop
+            return # exit communication 
         elif errorCode == 2:
-            hw.sendMsg(msgBuild.createPOSMsg())
-            hw.sendMsg(msgBuild.createFollowupMsg())
+            return olderTimestamp()
         elif errorCode == 3:
-            if switchCon.ROOT:
-                return
-            hw.sendMsg(msgBuild.createPOSMsg())
-            hw.sendMsg(msgBuild.createFollowupMsg())
+            # if switchCon.ROOT:
+            #     return
+            # hw.sendMsg(msgBuild.createPOSMsg())
+            # hw.sendMsg(msgBuild.createFollowupMsg())
+            return receiverIsROOT()
         else:
             errorMsgIncorrect()
-    elif header == 1:
+    elif scriptCode == 1:
         # msgBuild error
         if errorCode == 0:
-            hw.sendMsg(msgBuild.createAckMsg())
+            return msgLengthIncorrect()
         elif errorCode == 1:
-            hw.sendMsg(msgBuild.createAckMsg())
+            return msgTypeIncorrect()
         elif errorCode == 2:
-            hw.sendMsg(msgBuild.createAckMsg())
+            return parityCheckIncorrect()
         else:
-            errorMsgIncorrect()
-    elif header == 2:
+            return errorMsgIncorrect()
+    elif scriptCode == 2:
         # mapFunc error
         if errorCode == 0:
-            return # Abbruch
+            emptyMap()
+            return None
         elif errorCode == 1:
-            return # Abbruch
+            emptyGoalMap()
+            return None # main creates a goalMap
         elif errorCode == 2:
             # input o that place on the map that it is incorrect !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # signal to user that it is incorrect
-            if extra == 0:
-                pass
-            elif extra == 1:
-                pass
-            else: 
-                errorMsgIncorrect()
+            pass
         elif errorCode == 3:
-            return # Abbruch
+            mapTooLarge()
+            return None
         else:
-            errorMsgIncorrect()
+            return errorMsgIncorrect()
         pass
-    elif header == 3:
+    elif scriptCode == 3:
         # goalMapStore error
-        errorMsgIncorrect()
-    elif header == 4:
+        if errorCode == 0:
+            failedToAddGoalMap()
+            return None
+        else:
+            return errorMsgIncorrect() # there are no registered errors yet
+    elif scriptCode == 4:
         # errorHandling error
         if errorCode == 0:
-            hw.sendMsg(msgBuild.createAckMsg())
+            return errorMsgIncorrect()
+        elif errorCode == 1:
+            return timeout()
         else:
-            errorMsgIncorrect()
-    elif header == 5:
+            return errorMsgIncorrect()
+    elif scriptCode == 5:
         # controlHardware error
-        errorMsgIncorrect()
+        return errorMsgIncorrect()
     else:
-        msgTypeIncorrect()
-    # if busy then initiate polite gossip from switchCon
+        return msgTypeIncorrect()
 
-#----- From errorHandling -----
+#----- From errorHandling/ main -----
 def errorMsgIncorrect():
-    print(f"[ERROR] 1000000000000 The last msg contains a general mistake")
-    msgBuild.ACK = 0
-    hw.sendMsg(msgBuild.createACKMsg())
+    print(f"[ERROR] 1000000000000 The last error msg contains a general mistake")
+    return 0, SCRIPTCODE_ERROR
+    # send an ACK
+
+def timeout():
+    print(f"[ERROR] Timeout")
+    return 1, SCRIPTCODE_ERROR
+    # get a new communication partner
 
 #----- From goalMapsStorage -----
 def failedToAddGoalMap():
     print(f"[ERROR] 0110000000000 Failed to add new goalMap")
     # ask to resend msg
-    return None
+    return 2, SCRIPTCODE_GOALMAPSTORE
 
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000
     print(f"[ERROR] 0100000000000 Empty map. Will create an empty new one")
-    mapFunc.createMap()
+    # just create a new map
     return None
     
 def emptyGoalMap():     #head 11 script 00100 error 001
     print(f"[ERROR] 0100000100000 Empty goal map")
+    # ask what goal map is used -> would that be please send me an INSTRUCT?
     return None
     
-def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010 extra 00001
+def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010
     # light up in error
     print(f"[ERROR] 0100001000000 ({posx}|{posy}) is not a valid position for this game")
     # maybe add th extra field and use those bits as well?
@@ -131,47 +136,31 @@ def mapTooLarge():
 
 
 #----- From messageBuild -----
-def msgLengthIncorrect():
-    print("[ERROR] 0010000000000 RFID message must be exactly 2 bytes")
-    msgBuild.Message.header = 3      #ERROR
-    msgBuild.scriptCode = 1
-    msgBuild.errorCode = 0
-    hw.sendMsg(msgBuild.createErrorMsg())
-    
 def msgTypeIncorrect():
     print("[ERROR] 0010000100000 This message is not an INIT, FOLLOWUP, nor ERROR msg. Pls retry")
-    msgBuild.header = 3
-    msgBuild.scriptCode = 1
-    msgBuild.errorCode = 1
-    hw.sendMsg(msgBuild.createErrorMsg())
+    return 1, SCRIPTCODE_MSGBUILD
+
+def msgLengthIncorrect():
+    print("[ERROR] 0010000000000 RFID message must be exactly 2 bytes")
+    return 3, SCRIPTCODE_MSGBUILD
 
 def parityCheckIncorrect():
     print("[ERROR] 0010001000000 Parity Safety Check incorrect. Pls retry")
-    msgBuild.Message.scriptCode = 1
-    msgBuild.Message.errorCode = 1
-    hw.sendMsg(msgBuild.createErrorMsg())
+    return 4, SCRIPTCODE_MSGBUILD
 
 #----- From switchingConditions -----
 def receiverIsBusy():
     print("[ERROR] 0000000000000 Receiver is busy. Please retry again later")
-    msgBuild.scriptCode = 0
-    msgBuild.errorCode = 0
-    hw.sendMsg(msgBuild.serializeMsg(msgBuild.createErrorMsg()))
+    return 0, SCRIPTCODE_SWITCHCON
 
 def modeIsDifferent():
     print("[ERROR] 0000000100000 Receiver and sender's mode are different")
-    msgBuild.scriptCode = 0
-    msgBuild.errorCode = 1 
-    hw.sendMsg(msgBuild.serializeMsg(msgBuild.createErrorMsg())) 
+    return 1, SCRIPTCODE_SWITCHCON
 
 def olderTimestamp():
     print("[ERROR] 0000001000000 Sender's timestamp is older than receiver's. Will now send my own timestamp")
-    msgBuild.scriptCode = 0
-    msgBuild.errorCode = 2
-    msgBuild.sendMsg(msgBuild.serializeMsg(msgBuild.createErrorMsg()))
+    return 2, SCRIPTCODE_SWITCHCON
 
 def receiverIsROOT():
     print(f"[] 0000001100000 Receiver is ROOT")
-    msgBuild.scriptCode = 0
-    msgBuild.errorCode = 3
-    msgBuild.sendMsg(msgBuild.serializeMsg(msgBuild.createErrorMsg()))
+    return 3, SCRIPTCODE_SWITCHCON

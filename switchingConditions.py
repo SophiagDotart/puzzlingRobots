@@ -31,7 +31,7 @@ class Node:
         self.id = nodeId
         self.IDLE = 1
         self.ROOT = 0
-        self.t = 0
+        self.timestamp = 0
         # For communications and priority
         self.REPLY = 0
         self.mode = 0
@@ -50,7 +50,7 @@ class Node:
     #----- Auxiliary functions -----
     def becomeRoot(self):          
         # calculate if node will become a root
-        return np.random.rand() < expDecay(self.t, initRootProb, decayRate)  
+        return np.random.rand() < expDecay(self.timestamp, initRootProb, decayRate)  
 
     def timeout(self):
         # if a node has not been updated for timeToPassive steps then become passive
@@ -74,7 +74,7 @@ class Node:
     def printData(self):
         print(f"Robot {self.nodeId} is at position ({self.mapHandler.x}, {self.mapHandler.y})")
         print(f"Is ROOT: {self.ROOT}, is IDLE: {self.IDLE}")
-        print(f"Current timestamp: {self.t}")
+        print(f"Current timestamp: {self.timestamp}")
         print(f"Current internal map: {mapFunc.printCompressedMap(self.compMap)}")
         print(f"Currently playing game: {self.mode}")
         print(f"Current goal/ mode map: {mapFunc.printCompressedMap(self.compGoalMap)}")
@@ -98,7 +98,7 @@ class Node:
         self.ROOT = 1
         mapFunc.createMap(msg)
         self.mode = msgBuild.getMode(msg)
-        self.t += 1
+        self.timestamp += 1
         print(f"[FYI] Node {self.id} received instructions from card, mode = {self.mode}")
 
     def updateRcv(self, msg):   # reacts to UPDATESYSTEM
@@ -134,10 +134,10 @@ class Node:
                     if(self.mode != msgBuild.getMode()):
                         err.modeIsDifferent()
                     else:
-                        if msgBuild.getTimestep() > self.t:
+                        if msgBuild.getTimestep() > self.timestamp:
                             self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
                             print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()} bc newer data")
-                        elif msgBuild.getTimestep() < self.t:
+                        elif msgBuild.getTimestep() < self.timestamp:
                             err.olderTimestamp()
                         else:
                             print(f"[UPDATE] Communicating nodes have the same timestamps and modes, so no exchange")
@@ -145,6 +145,6 @@ class Node:
                 self.ROOT = self.becomeRoot() 
                 self.BUSY = 0
                 self.delayIfBusy = 0
-            self.lastUpdate = self.t
-            self.t += 1
+            self.lastUpdate = self.timestamp
+            self.timestamp += 1
         self.IDLE = 0
