@@ -42,11 +42,10 @@ class Map:
     }
 
     def __init__(self):
-        self._compMap = bytearray()  # compressed map for storage
+        self._compMap = bytearray()     # compressed map for storage
         self._compGoalMap = bytearray()
-        self.margins = (0, 0, 0, 0) # min(x), min(y), width, height
+        self.margins = (0, 0, 0, 0)     # min(x), min(y), width, height
         self.goalMargins = (0, 0, 0, 0)
-    # access goalMap in main to pass it in: goalMapStore.loadGoalMap(node.mode)    
 
     def deleteCompMap(self):   
         self._compMap.clear()
@@ -73,9 +72,9 @@ class Map:
         
     #----- (De)compress the maps -----
     @staticmethod
-    def compressMapToByteArray(ogMap: dict):      # only the cards have a dict
+    def compressMapToByteArray(ogMap: dict):    # only the cards have a dict
         if not ogMap:
-            return Map.MAPERROR_EMPTYMAP # err.emptyMap()
+            return Map.MAPERROR_EMPTYMAP        # err.emptyMap()
         xs = [x for (x, y) in ogMap.keys()]
         ys = [y for (x, y) in ogMap.keys()]
         minx, maxx = min(xs), max(xs)
@@ -94,7 +93,7 @@ class Map:
     def printCompressedMap(self):
         print(f"[DEBUG] This is my current compressed map:")
         if not self._compMap:
-            return self.MAPERROR_EMPTYMAP # err.emptyMap()
+            return self.MAPERROR_EMPTYMAP       # err.emptyMap()
         minx, miny, width, height = self.margins
         for j in range(height):
             row = ""
@@ -116,69 +115,68 @@ class Map:
 
     def compareMaps(self, senderMap, goalMaps, goalMapMargins):
         if not self._compMap:
-            return self.MAPERROR_EMPTYMAP # err.emptyMap
+            return self.MAPERROR_EMPTYMAP           # err.emptyMap
         elif not senderMap:
-            return self.MAPERROR_EMPTYGOALMAP # err.emptyGoalMap
+            return self.MAPERROR_EMPTYGOALMAP       # err.emptyGoalMap
         elif self.margins != goalMapMargins:
-            return self.MAPERROR_MARGINSDIFFER # err.marginsDiffer
+            return self.MAPERROR_MARGINSDIFFER      # err.marginsDiffer
         elif len(self._compMap) >= len(senderMap):
-            return self.MAPERROR_INCORRECTLENGTH # err.mapIncorrectLength
+            return self.MAPERROR_INCORRECTLENGTH    # err.mapIncorrectLength
         else:
             minX, minY, width, height = self.margins
             if len(self._compMap) != width * height:
                 return self.MAPERROR_INCORRECTLENGTH
             for i in range(len(self._compMap)):
-                posX = minX + i % width     # modulo to get the remainder of row -> got column
-                posY = minY + i // width    # integer division to get row
+                posX = minX + i % width             # modulo to get the remainder of row -> got column
+                posY = minY + i // width            # integer division to get row
                 entry = self._compMap[i]
                 if entry != senderMap[i]:
                     if not self.checkTileIsCorrect(posX, posY, entry, goalMapMargins):
-                        return self.MAPERROR_WRONGTILE # err.wrongTile
+                        return self.MAPERROR_WRONGTILE                  # err.wrongTile
                     if not self.setTileInCompressedMap(posX, posY, entry):
-                        return self.MAPERROR_ATTACHMENTFORBIDDEN # err.forbidden attachment
+                        return self.MAPERROR_ATTACHMENTFORBIDDEN        # err.forbidden attachment
                     # update that tile and move to the next position
                 else: 
-                    pass # they are the same, we can just continue testing next position
-        return True # maps are the same
+                    pass        # they are the same, we can just continue testing next position
+        return True             # maps are the same
 
     def compareMapToGoal(self, goalMap):
         # Essentially the same as compMap but with goalMap as comparison
         if not self._compMap:
-            return self.MAPERROR_EMPTYMAP # err.emptyMap
+            return self.MAPERROR_EMPTYMAP           # err.emptyMap
         if not goalMap:
-            return self.MAPERROR_EMPTYGOALMAP # err.emptyGoalMap
+            return self.MAPERROR_EMPTYGOALMAP       # err.emptyGoalMap
         if len(self._compMap) != len(goalMap):
             print("[FYI] Mode has not been completed yet")
             return False
         for i in range(len(self._compMap)):
             if self._compMap[i] != goalMap[i]:
                 print(f"[FYI] There is an error in the current mode map")
-                return self.MAPERROR_WRONGTILE # err.wrongTile
+                return self.MAPERROR_WRONGTILE      # err.wrongTile
             else: 
-                pass # they are the same, we can just continue testing next position
+                pass        # they are the same, we can just continue testing next position
         print(f"[FYI] Mode has been completed. Congrats!")
-        return True # maps are the same
+        return True         # maps are the same
 
     def setTileInCompressedMap(self, posX, posY, tile):
         if not self._compMap:
-            return self.MAPERROR_EMPTYMAP # err.empty map
+            return self.MAPERROR_EMPTYMAP           # err.empty map
         if tile not in self.tileToByte:
-            return self.MAPERROR_UNRECOGNIZEDTILE # err.unrecognized tile
+            return self.MAPERROR_UNRECOGNIZEDTILE   # err.unrecognized tile
         index = self.getIndex(posX, posY)
         if index is not True:
-            return self.MAPERROR_OUTSIDEOFMARGINS # err.outside margins
+            return self.MAPERROR_OUTSIDEOFMARGINS   # err.outside margins
         self._compMap[index] = self.tileToByte[tile]
         return True
 
 #----- Check that everything is alright functions -----
     def checkTileIsCorrect(self, posX, posY, goalMap):
         if self._compMap[posX, posY] != goalMap[posX, posY]:
-            return self.MAPERROR_WRONGTILE # err.wrong tile
+            return self.MAPERROR_WRONGTILE          # err.wrong tile
         else:
             return True
         
-    def checkIfCompressedMapIsCorrect(self):
-        # length correct? values within expected bounds? correct dimensions?
+    def checkIfCompressedMapIsCorrect(self):        # length correct? values within expected bounds? correct dimensions?
         expectedSize = self.width * self.height
         if len(self._compMap) != expectedSize:
             return False
@@ -192,41 +190,21 @@ class Map:
     def getIndex(self, posX, posY):
         minx, miny, width, height = self.margins
         if not (minx <= posX < minx + width and miny <= posY < miny + height):
-            return None # err.outside margins
+            return None                                     # err.outside margins
         else:
-            index = (posY - miny) * width + (posX - minx)  # Convert (x, y) → flat array index
+            index = (posY - miny) * width + (posX - minx)   # Convert (x, y) → flat array index
             return index
         
     def getTileInCompressedMap(self, posX, posY):
         if not self._compMap:
-            return self.MAPERROR_EMPTYMAP # err.empty map
+            return self.MAPERROR_EMPTYMAP           # err.empty map
         minx, miny, width, height = self.margins
-        if not (minx <= posX < minx + width or miny <= posY < miny + height):
-            return self.MAPERROR_OUTSIDEOFMARGINS # err.outside margins
+        if not (minx <= posX < minx + width and miny <= posY < miny + height):
+            return self.MAPERROR_OUTSIDEOFMARGINS   # err.outside margins
         tile = self._compMap[self.getIndex(posX, posY)]
         if tile not in self.tileToByte:
-            return self.MAPERROR_UNRECOGNIZEDTILE # err.unrecognized tile
+            return self.MAPERROR_UNRECOGNIZEDTILE   # err.unrecognized tile
         index = self.getIndex(posX, posY)
         if index is not True:
-            return self.MAPERROR_OUTSIDEOFMARGINS # err.outside margins
+            return self.MAPERROR_OUTSIDEOFMARGINS   # err.outside margins
         return self._compMap[index]
-
-
-    # def attachmentAttempt(self, senderX, senderY, orientationX, orientationY, tile):      
-    #     # to check if the node is not being attached in a forbidden position
-    #     if not self._compMap:
-    #         return None # err.emptyMap()
-    #     # check wether in margin
-    #     # check wether tile exists
-
-    #     newX, newY = self.getOwnPos(senderX, senderY, orientationX, orientationY)
-    #     if tile not in self.tileToByte:
-    #         return self.MAPERROR_UNRECOGNIZEDTILE # err.unrecognizedTile
-    #     tile = self.getTileFromCompressedMap(newX, newY)
-    #     if tile in allowedPos: 
-    #         print(f"[FYI] Node will be added to swarm function at this {newX}, {newY} position")
-    #         # activate a certain color?
-    #         # start the whole map cycle
-    #         return True
-    #     else:
-    #         return False # err.attachmentPosForbidden(self.pos(newX), self.pos(newY))

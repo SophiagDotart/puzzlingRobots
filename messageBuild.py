@@ -4,20 +4,16 @@
 #... 000 = free
 #... 001 = Initiation msg (INIT)
 #... 010 = Follow-up/ Answer msg (FOLLOWUP)
-#... 011 = ERROR msg
+#... 011 = ERROR msg (ERROR)
 #... 100 = POS
-#... 101 = User game instruction 
-#... 110 = System Update
+#... 101 = User game instruction (INSTRUCT)
+#... 110 = System Update (SYSUPDATE)
 #... 111 = ACK
 
 #Lib for sysupdate code
-#... .010 = complete update
-#... .011 = new mode/ new goalMap to be added
+# 2 = complete update
+# 3 = new mode/ new goalMap to be added
 
-# For later implementation:
-#... bigger senderId & versioned header so the swarm can have more than 8 nodes
-#... implement proper checksum
-#... compress map fragments so it can can have more than 64 spaces
 
 from mapFunctions import Map
 
@@ -141,7 +137,7 @@ class Message:
     def createPosMsg(POSDONE, posX, posY):
         msg = 0
         msg = Message.setSeveralBit(msg, 13, 3, Message.POS_HEADER) 
-        msg = Message.setSeveralBit(msg, 9, 4, 0)                  # reserved is empty
+        msg = Message.setSeveralBit(msg, 9, 4, 0)           # reserved is empty
         msg = Message.setBit(msg, 8, POSDONE)
         msg = Message.setSeveralBit(msg, 4, 4, posX)
         msg = Message.setSeveralBit(msg, 0, 4, posY)
@@ -152,7 +148,7 @@ class Message:
         msg = 0
         msg = Message.setSeveralBit(msg, 13, 3, Message.ACK_HEADER)
         msg = Message.setBit(msg, 12, ACK)
-        msg = Message.setSeveralBit(msg, 5, 7, 0)                  # free is empty
+        msg = Message.setSeveralBit(msg, 5, 7, 0)           # free is empty
         msg = Message.setSeveralBit(msg, 0, 5, msgType)
         return msg
 
@@ -167,7 +163,7 @@ class Message:
     @staticmethod
     def checkIfCorrectLen(buf: bytearray):
         if len(buf) != 2:
-            return False  # err.msgLengthIncorrect()
+            return False        # err.msgLengthIncorrect()
         return (buf[0] << 8) | buf[1]
 
     #----- decode msgs -----
@@ -201,12 +197,11 @@ class Message:
             parity = Message.getSeveralBit(msg, 11, 2)         # get the parity value
             msg = Message.setSeveralBit(msg, 11, 2, 0)         # zero that value s parity bits dont screw the parity check
             if not parity == Message.calcParity(msg):
-                #err.parityCheckIncorrect()
                 return {'type': 'FOLLOWUP',
                         'orientation': None,
                         'DONE': None,
                         'mapData': None,
-                        'parity': False}
+                        'parity': False}                        #err.parityCheckIncorrect()
             return {'type': 'FOLLOWUP',
                     'orientation': orientation,
                     'DONE': Map.DONE,
@@ -315,49 +310,49 @@ class Message:
     @staticmethod
     def getSenderID(msg):
         if Message.getHeader(msg) != Message.INIT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 9, 4)
 
     @staticmethod  
     def getROOT(msg):
         if Message.getHeader(msg) != Message.INIT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getBit(msg, 8)
     
     @staticmethod
     def getMode(msg):
         if Message.getHeader(msg) != Message.INIT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 4, 4)    
     
     @staticmethod
     def getTimestep(msg):
         if Message.getHeader(msg) != Message.INIT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 4)  
 
     @staticmethod
     def getPOSDONE(msg):
         if Message.getHeader(msg) != Message.POS_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Map.POSDONE
     
     @staticmethod
     def getPosX(msg):
         if Message.getHeader(msg) != Message.POS_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 4, 4)
     
     @staticmethod
     def getPosY(msg):
         if Message.getHeader(msg) != Message.POS_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 4)
     
     @staticmethod
     def getOrientation(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 11, 2)  
 
     @staticmethod
@@ -371,71 +366,71 @@ class Message:
     @staticmethod
     def getDONE(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Map.POSDONE
 
     @staticmethod    
     def getMap(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Map.deserialize(Message.getSeveralBit(msg, 0, 8))
 
     @staticmethod    
     def getScriptCode(msg):
         if Message.getHeader(msg) != Message.ERROR_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 8, 5)
 
     @staticmethod    
     def getErrorCode(msg):
         if Message.getHeader(msg) != Message.ERROR_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 5, 3)
 
     @staticmethod
     def getExtraErrorBits(msg):
         if Message.getHeader(msg) != Message.ERROR_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 5)
     
     @staticmethod
     def getACK(msg):
         if Message.getHeader(msg) != Message.ACK_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getBit(msg, 12)
     
     @staticmethod
     def getLastMsgType(msg):
         if Message.getHeader(msg) != Message.ACK_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 5)
 
     @staticmethod
     def getUpdateCode(msg):
         if Message.getHeader(msg) != Message.SYSUPDATE_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 8, 3)
     
     @staticmethod
     def getUpdateData(msg):
         if Message.getHeader(msg) != Message.SYSUPDATE_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 8)
     
     @staticmethod
     def getInstMode(msg):
         if Message.getHeader(msg) != Message.INSTRUCT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 9, 4)
     
     @staticmethod
     def getINSTDONE(msg):
         if Message.getHeader(msg) != Message.INSTRUCT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getBit(msg, 8)
     
     @staticmethod
     def getInstructData(msg):
         if Message.getHeader(msg) != Message.INSTRUCT_HEADER:
-            return None #err.msgTypeIncorrect()
+            return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 8)

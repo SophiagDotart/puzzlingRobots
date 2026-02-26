@@ -68,7 +68,7 @@ class Node:
         print(f"Amount of msg rcv: {self.rcvMsgs}, Amount of sent msgs: {self.sentMsgs}, Timestamp of the last follow-up msg is: {self.lastUpdate}") 
 
     #----- "How to manage msg way" functions -----
-    def processInstructMsg(self, instructMode): # reacts to Instruct
+    def processInstructMsg(self, instructMode):     # reacts to Instruct
         self.BUSY = True
         self.IDLE = not self.BUSY
         self.ROOT = True
@@ -83,7 +83,7 @@ class Node:
             return RESULT_COMMUNICATIONACCEPTED
         else:
             if self.BUSY:
-                return RESULT_BUSY # err.receiverIsBusy()
+                return RESULT_BUSY                  # err.receiverIsBusy()
             else:
                 self.BUSY = True
                 self.IDLE = not self.BUSY
@@ -91,7 +91,7 @@ class Node:
                 if self.ROOT == True:
                     self.BUSY = False
                     self.IDLE = not self.BUSY
-                    return RESULT_ROOT # err.receiverIsROOT()
+                    return RESULT_ROOT              # err.receiverIsROOT()
                 elif senderROOT == True and self.ROOT == False:
                     self.INITDONE = True
                     return RESULT_COMMUNICATIONACCEPTED
@@ -100,7 +100,7 @@ class Node:
                         self.ROOT = self.becomeRoot() 
                         self.BUSY = False
                         self.IDLE = not self.BUSY
-                        return RESULT_MODE # err.modeIsDifferent()
+                        return RESULT_MODE          # err.modeIsDifferent()
                     else:
                         if senderTimestep > self.timestamp:
                             self.INITDONE = True
@@ -109,7 +109,7 @@ class Node:
                             self.ROOT = self.becomeRoot() 
                             self.BUSY = False
                             self.IDLE = not self.BUSY
-                            return RESULT_TIMESTEP # err.olderTimestamp()
+                            return RESULT_TIMESTEP  # err.olderTimestamp()
                         else:
                             print(f"[UPDATE] Communicating nodes have the same timestamps and modes, so no exchange")
                             self.ROOT = self.becomeRoot() 

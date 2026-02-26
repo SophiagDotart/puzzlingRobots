@@ -1,27 +1,53 @@
 # Script to store, return, and identify the errors
 
-#Lib for script and error codes
-#... 101 = controlHardware
-#... 100 = errorHandling/ main -> general errors
-#... ... 00000 = The msg contains a general mistake
-#... ... 00001 = Timeout
-#... 011 = goalMapStorage
-#... ... 00020 = failed to add a new goalMap
-#... 010 = mapFunctions
-#... ... 00000 = the map is missing
-#... ... 00001 = the goal map is missing
-#... ... 00010 = the tile is trying to attach itself to a forbidden position within the map
-#... ... ..... 00001 = forbidden position due to outside of the boundaries or 'has to be left empty' tile
-#... ... 00011 = the size of the map is too big
-#... 001 = messageBuild
-#... ... 00000 = the message received is the incorrect length
-#... ... 00001 = the message is neither a INIT, POS, FOLLOWUP, SYSTEM UPDATE, INSTRUCTION or ERROR message
-#... ... 00010 = parity check is incorrect
-#... 000 = switching conditions
-#... ... 00000 = receiver is busy. Retry later
-#... ... 00001 = receiver and sender’s mode are different
-#... ... 00010 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
-#... ... 00011 = receiver is ROOT
+#Lib for script and error codes:
+#
+#. 0 = switching conditions/ switchCon
+#. 0 0 = receiver is busy. Retry later
+#. 0 1 = receiver and sender’s mode are different
+#. 0 2 = sender’s timestamp is older than receiver’s. Will now send my own FOLLOW-UP
+#. 0 3 = receiver is ROOT
+#
+#. 1 = messageBuild
+#. 1 1 = msg type was not recognized
+#. 1 3 = the message received is the incorrect length
+#. 1 4 = parity check is incorrect
+#
+#. 2 = mapFunctions
+#. 2 0 = the map is missing
+#. 2 1 = the goal map is missing
+#. 2 2 = the tile is trying to attach itself to a forbidden position within the map
+#. 2 3 = the size of the map is incorrect
+#. 2 4 = the margins of the 2 maps differ
+#. 2 5 = this tile does not belong in this position
+#. 2 6 = this tile is outside the margins
+#. 2 7 = this tile is not recognized
+#
+#. 3 = goalMapStorage
+#. 3 0 = failed to add a new goalMap
+#
+#. 4 = errorHandling/ main -> general errors
+#. 4 0 = the received msg contains a mistake
+#. 4 1 = time is up. I am sick of waiting, moving on
+#. 4 2 = msgs have arrived in the wrong order
+#. 4 3 = I have no idea what that error is, will ignore it
+#. 4 4 = that flag combination is not possible. Please correct it
+#. 4 5 = I have no idea what is happening and won't even try
+#. 5 = hardware
+#       nothing here yet. Add your own!
+
+# Possible actions table:
+# 1 = ignore 
+# 2 = send an ERROR msg
+# 3 = send an ACK msg asking to repeat the last message
+# 4 = reset robot
+# 5 = actually try to correct the mistake
+# 5 1 = deletes and adds new map
+# 5 2 = enters in map that that tile is in an incorrect position
+# 5 3 = replaces whatever symbol that tile had with a ?
+# 5 4 = resets the flags so communication can restart anew
+# 6 = send an INIT msg to update their status instead
+# 7 = signal to the user that they made a mistake
 
 SCRIPTCODE_SWITCHCON = 0
 SCRIPTCODE_MSGBUILD = 1
@@ -51,10 +77,6 @@ def decodeErrorMsg(scriptCode, errorCode):
         elif errorCode == 2:
             return olderTimestamp()
         elif errorCode == 3:
-            # if switchCon.ROOT:
-            #     return
-            # hw.sendMsg(msgBuild.createPOSMsg())
-            # hw.sendMsg(msgBuild.createFollowupMsg())
             return receiverIsROOT()
         else:
             errorMsgIncorrect()
@@ -70,9 +92,7 @@ def decodeErrorMsg(scriptCode, errorCode):
             return errorMsgIncorrect()
     elif scriptCode == 2:
         if errorCode == 2:
-            # input o that place on the map that it is incorrect !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # signal to user that it is incorrect
-            pass
+            return attachmentAtPosForbidden()
         elif errorCode == 3:
             return mapIncorrectLength()
         else:
@@ -84,7 +104,7 @@ def decodeErrorMsg(scriptCode, errorCode):
             failedToAddGoalMap()
             return None
         else:
-            return errorMsgIncorrect() # there are no registered errors yet
+            return errorMsgIncorrect()      # there are no registered errors yet
     elif scriptCode == 4:
         # errorHandling error
         if errorCode == 0:
@@ -101,7 +121,7 @@ def decodeErrorMsg(scriptCode, errorCode):
 
 #----- From errorHandling/ main -----
 def errorMsgIncorrect():
-    print(f"[ERROR] 1000000000000 The last error msg contains a general mistake")
+    print(f"[ERROR] The last error msg contains a general mistake")
     return {"scriptCode": SCRIPTCODE_ERROR, 
             "errorCode": 0,
             "action": ACTION_IGNORE,
@@ -145,16 +165,16 @@ def wtfIsHappening():
 
 #----- From goalMapsStorage -----
 def failedToAddGoalMap():
-    print(f"[ERROR] 0110000000000 Failed to add new goalMap")
+    print(f"[ERROR] Failed to add new goalMap")
     # ask to resend msg
     return {"scriptCode": SCRIPTCODE_GOALMAPSTORE, 
-            "errorCode": 2,                 # check if correct!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            "errorCode": 0,               
             "action": ACTION_SENDPLSREPEATMSG,
             "actionCode": None}
 
 #----- From mapFunctions -----
 def emptyMap():         #head 11 script 00100 error 000
-    print(f"[ERROR] 0100000000000 Empty map. Will create an empty new one")
+    print(f"[ERROR] Empty map. Will create an empty new one")
     # just create a new map
     return {"scriptCode": None, 
             "errorCode": None,
@@ -162,15 +182,15 @@ def emptyMap():         #head 11 script 00100 error 000
             "actionCode": ACTION_CORRECTSTH_RESTARTMAP}
     
 def emptyGoalMap():     #head 11 script 00100 error 001
-    print(f"[ERROR] 0100000100000 Empty goal map") # INSTRUCTMsg, errorCode 1
+    print(f"[ERROR] Empty goal map") # INSTRUCTMsg, errorCode 1
     return {"scriptCode": None, 
             "errorCode": None,
             "action": ACTION_IGNORE,
             "actionCode": None}
     
-def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010
+def attachmentAtPosForbidden():   #head 11 script 00100 error 010
     # light up in error
-    print(f"[ERROR] 0100001000000 ({posx}|{posy}) is not a valid position for this game")
+    print(f"[ERROR] This position is not a valid position for this game")
     # maybe add th extra field and use those bits as well?
     return {"scriptCode": None, 
             "errorCode": None,
@@ -178,7 +198,7 @@ def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010
             "actionCode": ACTION_CORRECTSTH_TILEINCORRECT}
 
 def mapIncorrectLength():
-    print(f"[ERROR] 0110001100000 The size of the map is too big")
+    print(f"[ERROR] The size of the map is incorrect")
     # pls resend the map
     return {"scriptCode": SCRIPTCODE_MSGBUILD, #PLease resend followUpmsg !!!!!!!!!!!!!!!!!!!!!
             "errorCode": None,
@@ -219,21 +239,21 @@ def tileNotRecognized():
 
 #----- From messageBuild -----
 def msgTypeIncorrect():
-    print("[ERROR] 0010000100000 This message type is not valid. Pls retry")
+    print("[ERROR] This message type is not valid. Pls retry")
     return {"scriptCode": SCRIPTCODE_MSGBUILD, 
             "errorCode": 1,
             "action": ACTION_SENDPLSREPEATMSG,
             "actionCode": None}
 
 def msgLengthIncorrect():
-    print("[ERROR] 0010000000000 RFID message must be exactly 2 bytes")
+    print("[ERROR] RFID message must be exactly 2 bytes")
     return {"scriptCode": SCRIPTCODE_MSGBUILD, 
             "errorCode": 3,
             "action": ACTION_SENDPLSREPEATMSG,
             "actionCode": None}
 
 def parityCheckIncorrect():
-    print("[ERROR] 0010001000000 Parity Safety Check incorrect. Pls retry")
+    print("[ERROR] Parity Safety Check incorrect. Pls retry")
     return {"scriptCode": SCRIPTCODE_MSGBUILD, 
             "errorCode": 4,
             "action": ACTION_SENDPLSREPEATMSG,
@@ -241,28 +261,28 @@ def parityCheckIncorrect():
 
 #----- From switchingConditions -----
 def receiverIsBusy():
-    print("[ERROR] 0000000000000 Receiver is busy. Please retry again later")
+    print("[ERROR] Receiver is busy. Please retry again later")
     return {"scriptCode": SCRIPTCODE_SWITCHCON, 
             "errorCode": 0,
             "action": ACTION_SENDERRORMSG,
             "actionCode": None}
 
 def modeIsDifferent():
-    print("[ERROR] 0000000100000 Receiver and sender's mode are different")
+    print("[ERROR] Receiver and sender's mode are different")
     return {"scriptCode": SCRIPTCODE_SWITCHCON, 
             "errorCode": 1,
             "action": ACTION_SENDERRORMSG,
             "actionCode": None}
 
 def olderTimestamp():
-    print("[ERROR] 0000001000000 Sender's timestamp is older than receiver's. Will now send my own timestamp")
+    print("[ERROR] Sender's timestamp is older than receiver's. Will now send my own timestamp")
     return {"scriptCode": SCRIPTCODE_SWITCHCON, 
             "errorCode": 2,
             "action": ACTION_SENDINITMSG,
             "actionCode": None}
 
 def receiverIsROOT():
-    print(f"[] 0000001100000 Receiver is ROOT")
+    print(f"[ERROR] Receiver is ROOT")
     return {"scriptCode": SCRIPTCODE_SWITCHCON, 
             "errorCode": 3,
             "action": ACTION_SENDERRORMSG,
