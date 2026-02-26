@@ -40,6 +40,8 @@ ACTION_SENDINITMSG = 6
 ACTION_CORRECTSTH_RESTARTMAP = 1
 ACTION_CORRECTSTH_TILEINCORRECT = 2
 
+# CAN BE SEVERLY OPTIMIZED: NOT ALL ERRORS CAN BE SENT
+# MISSING A WRONG MSG
 def decodeErrorMsg(scriptCode, errorCode):
     if scriptCode == 0:
         # switchCon error
@@ -98,6 +100,8 @@ def decodeErrorMsg(scriptCode, errorCode):
             return errorMsgIncorrect()
         elif errorCode == 1:
             return timeout()
+        elif errorCode == 2:
+            return wrongOrder()
         else:
             return errorMsgIncorrect()
     elif scriptCode == 5:
@@ -129,6 +133,16 @@ def unknownError():
             "errorCode": None,
             "action": ACTION_IGNORE,
             "actionCode": None}
+    # do nothing but acknowledge it
+
+def wrongOrder():
+    print(f"[ERROR] I have not received crucial information ")
+    print(f"[ERROR] Timeout")
+    return {"scriptCode": SCRIPTCODE_ERROR, 
+            "errorCode": 2,
+            "action": ACTION_SENDPLSREPEATMSG,
+            "actionCode": None}
+    # request to send previous msg
 
 #----- From goalMapsStorage -----
 def failedToAddGoalMap():

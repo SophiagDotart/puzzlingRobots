@@ -6,20 +6,20 @@
 # Maybe have a flag description here?
 
 import numpy as np
-import random
-# import time
-import mapFunctions as mapFunc
-import messageBuild as msgBuild
-import errorHandling as err
 from mapFunctions import Map
 
 # tested in input race simulation
 timeToPassive = 50                  
-initRootProb = 0.8 
-decayRate = 0.05 
+INITIAL_ROOT_PROBABILITY = 0.8 
+DECAY_RATE = 0.05 
 
-# to test here
-maxDelayIfBusy = 10
+#---- -----
+RESULT_BUSY = 1
+RESULT_ROOT = 2
+RESULT_MODE = 3
+RESULT_TIMESTEP = 4
+RESULT_EQUAL = 5
+RESULT_COMMUNICATIONACCEPTED = 6
 
 #----- General functions -----
 def expDecay(t, p0, dec): 
@@ -33,15 +33,12 @@ class Node:
         self.ROOT = 0
         self.timestamp = 0
         # For communications and priority
-        self.REPLY = 0
         self.mode = 0
-        self.SOURCE = 1             # if it were a card this would be 0
         self.BUSY = 0
-        self.delayIfBusy = 0
-        self.updateCode = 1 
         self.lastRcvMsgHeader = None
         self.mapHandler = Map()
-        print(f"[NEW] Node {self.id} was created")
+        self.moduleNumber = None
+        print(f"[FYI] Node {self.id} was created")
         # For statistics
         self.lastUpdate = 0
         self.sentMsgs = 0
@@ -50,7 +47,7 @@ class Node:
     #----- Auxiliary functions -----
     def becomeRoot(self):          
         # calculate if node will become a root
-        return np.random.rand() < expDecay(self.timestamp, initRootProb, decayRate)  
+        return np.random.rand() < expDecay(self.timestamp, INITIAL_ROOT_PROBABILITY, DECAY_RATE)  
 
     def timeout(self):
         # if a node has not been updated for timeToPassive steps then become passive
@@ -58,93 +55,57 @@ class Node:
             self.IDLE = 1
             self.ROOT = 0
             self.delayIfBusy = 0
-        print(f"[FYI] Node {self.id} is now IDLE again bc timeout")
-    
-    def politeGossipWait(self, receiver):
-        if msgBuild.getBUSY():
-            self.delayIfBusy = min(self.delayIfBusy +1, maxDelayIfBusy) + random.randint(0, 2)
-            print(f"[FYI] receiving Node {receiver} is busy. Node {self.id} will retry later")
-            err.receiverBusy()
-        if self.delayIfBusy >= maxDelayIfBusy:      # resend msg when polite gossip delay is ready to retry
-            print(f"[FIY] {self.id} has waited politely and will now resend the msg to {receiver}")
-            self.delayIfBusy = 0
-        elif self.delayIfBusy > 0:                  # wait before interrupting again
-            return
+        print(f"[FYI] Am now in IDLE again bc timeout")
 
-    def printData(self):
-        print(f"Robot {self.nodeId} is at position ({self.mapHandler.x}, {self.mapHandler.y})")
-        print(f"Is ROOT: {self.ROOT}, is IDLE: {self.IDLE}")
-        print(f"Current timestamp: {self.timestamp}")
-        print(f"Current internal map: {mapFunc.printCompressedMap(self.compMap)}")
-        print(f"Currently playing game: {self.mode}")
-        print(f"Current goal/ mode map: {mapFunc.printCompressedMap(self.compGoalMap)}")
-        #not printing waiting queue yet
-        print(f"Statistical data")
-        print(f"Amount of msg rcv: {self.rcvMsgs}") 
-        print(f"Amount of sent msgs: {self.sentMsgs}")
-        print(f"Timestamp of the last follow-up msg is: {self.lastUpdate}")
+    # def printData(self):
+    #     print(f"Robot {self.nodeId} is at position ({self.mapHandler.x}, {self.mapHandler.y})")
+    #     print(f"Is ROOT: {self.ROOT}, is IDLE: {self.IDLE}")
+    #     print(f"Current timestamp: {self.timestamp}")
+    #     print(f"Current internal map: {mapFunc.printCompressedMap(self.compMap)}")
+    #     print(f"Currently playing game: {self.mode}")
+    #     print(f"Current goal/ mode map: {mapFunc.printCompressedMap(self.compGoalMap)}")
+    #     #not printing waiting queue yet
+    #     print(f"Statistical data")
+    #     print(f"Amount of msg rcv: {self.rcvMsgs}") 
+    #     print(f"Amount of sent msgs: {self.sentMsgs}")
+    #     print(f"Timestamp of the last follow-up msg is: {self.lastUpdate}")
 
     #----- "How to manage msg way" functions -----
-    def msgDetected(self, msg):
-        if (msgBuild.getMsgSourceType() == 0):      # msg comes from another robot
-            self.msgRcv(msg)
-        elif (msgBuild.getMsgSourceType() == 1):    # msg comes from a user
-            self.instructRcv(msg)
-        else:
-            err.messageSourceIncorrect()
-    
-    def instructRcv(self, msg): # reacts directly to INSTRUCT
+    def processInstructMsg(self, instructMode): # reacts to Instruct
         self.IDLE = 0
         self.ROOT = 1
-        mapFunc.createMap(msg)
-        self.mode = msgBuild.getMode(msg)
+        self.mode = instructMode
         self.timestamp += 1
-        print(f"[FYI] Node {self.id} received instructions from card, mode = {self.mode}")
 
-    def updateRcv(self, msg):   # reacts to UPDATESYSTEM
-        # check first wether its an additional goalMap!
-        if msg == msgBuild.codeForCompleteSystemUpdate:        # check wether its a system update 
-            if msgBuild.getUpdateCode()> self.updateCode:
-                print(f"[ERROR] Update structure not implemented")
-                return True
-        elif msg == msgBuild.codeForNewGoalMap:                 # it was just a new goalmap
-            return False
-        else:
-            return None                                         # Wtf did you give me?
-                       
-
-    def msgRcv(self, msg):    # reacts to INIT
+    def processInitMsg(self, senderTimestep, senderMode, senderROOT):    # reacts to INIT
         # IDLE > BUSY > ROOT > MODE > TIMESTAMPS
+        self.IDLE = 0
+        self.ROOT = self.becomeRoot() 
+        self.timestamp += 1
         if (self.IDLE):
-            self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
-            print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()}")
+            return RESULT_COMMUNICATIONACCEPTED
         else:
             if self.BUSY:
-                err.receiverIsBusy()
+                return RESULT_BUSY # err.receiverIsBusy()
             else:
                 self.BUSY = 1
                 self.rcvMsgs += 1 
                 if self.ROOT == 1:
-                    err.receiverIsROOT()
-                elif msgBuild.getROOT() == 1 and self.ROOT == 0:
-                    self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
-                    print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()}")
-                    
+                    self.BUSY = 0
+                    return RESULT_ROOT # err.receiverIsROOT()
+                elif senderROOT == 1 and self.ROOT == 0:
+                    return RESULT_COMMUNICATIONACCEPTED
                 else:
-                    if(self.mode != msgBuild.getMode()):
-                        err.modeIsDifferent()
+                    if(self.mode != senderMode):
+                        self.BUSY = 0
+                        return RESULT_MODE # err.modeIsDifferent()
                     else:
-                        if msgBuild.getTimestep() > self.timestamp:
-                            self.overwriteMap(msgBuild.getMap(), msgBuild.getTimestep())
-                            print(f"[FYI] Node {self.id} copied Node {msgBuild.getSenderId()} bc newer data")
-                        elif msgBuild.getTimestep() < self.timestamp:
-                            err.olderTimestamp()
+                        if senderTimestep > self.timestamp:
+                            return RESULT_COMMUNICATIONACCEPTED
+                        elif senderTimestep < self.timestamp:
+                            self.BUSY = 0
+                            return RESULT_TIMESTEP # err.olderTimestamp()
                         else:
                             print(f"[UPDATE] Communicating nodes have the same timestamps and modes, so no exchange")
-                self.IDLE = 1              
-                self.ROOT = self.becomeRoot() 
-                self.BUSY = 0
-                self.delayIfBusy = 0
-            self.lastUpdate = self.timestamp
-            self.timestamp += 1
-        self.IDLE = 0
+                            self.BUSY = 0
+                            return RESULT_EQUAL  

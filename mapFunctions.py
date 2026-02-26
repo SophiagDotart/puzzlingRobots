@@ -1,12 +1,7 @@
 #----- Map functions ----- 
-# Handles any functions that deal with the contents of the map -> create, (de)compress, change maps including figuring out where the user is on the map
-# Switching logic in script "switching conditions"
-# Hardware functions in separate script
+# Handles any functions that deal with the contents of the map 
+# create, (de)compress, change maps including figuring out where the user is on the map
 
-#scripts not imported: controlHardware
-import errorHandling as err
-import messageBuild as msgBuild
-import goalMapsStorage as goalMapStore
 
 class Map:
     # functions related to the compression of the map (dictionary to bytearray and back)
@@ -44,48 +39,46 @@ class Map:
         print(f"[FYI] compressed map has been deleted") 
         
     #----- Find and update own position in map -----
-    def getOwnPos(self, msg):
+    @staticmethod
+    def getOwnPos(senderX, senderY, orientationX, orientationY):
         # when the node first enters the swarm, it gets assigned a coordinate by its neighbour
-        senderX, senderY = msg["senderPos"]                     # INFORMATION IS MISSING IN THE INIT MESSAGE!!!!!! FIX
-        dx, dy = msgBuild.getOrientation(msg)# it is calculated "Im sending on module 1" and "Im receiving on module 3"  
-        return senderX + dx, senderY + dy       # add the difference to the neighbour's position
+        # it is calculated "Im sending on module 1" and "Im receiving on module 3"  
+        return senderX + orientationX, senderY + orientationY       # add the difference to the neighbour's position
 
-    def overwritePos(self, msg):
-        self.x, self.y = self.getOwnPos(msg)
+    def overwritePos(self, newX, newY):
+        self.x, self.y = newX, newY
 
-    def updatePosition(self, msg):
+    def updatePosition(node, senderX, senderY):
         # root status do not get overwritten
-        if self.ROOT:
-            err.receiverIsROOT()
-            return
-        self.overwritePos(msg)
-        senderX, senderY = msg["senderPos"] #AGAIN THIS HAS NOT BEEN SENT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        print(f"[FYI] Node {self.id} updated it's position to ({senderX}, {senderY})")
+        if node.ROOT:
+            return False # err.receiverIsROOT()
+        Map.overwritePos(senderX, senderY)
+        print(f"[FYI] Node {node.id} updated it's position to ({senderX}, {senderY})")
+        return True
         
     #----- (De)compress the maps -----
     @staticmethod
-    def compressMapToByteArray(self, ogMap: dict):      # only the cards have a dict
+    def compressMapToByteArray(ogMap: dict):      # only the cards have a dict
         if not ogMap:
-            err.emptyMap()
-            return None
+            return None # err.emptyMap()
         xs = [x for (x, y) in ogMap.keys()]
         ys = [y for (x, y) in ogMap.keys()]
         minx, maxx = min(xs), max(xs)
         miny, maxy = min(ys), max(ys)
         width = maxx - minx + 1
         height = maxy - miny + 1
-        if width * height > self.MAX_MAP_SIZE:          # safety check
-            err.mapTooLarge()
-            return None, None
+        if width * height > Map.MAX_MAP_SIZE:          # safety check
+            return False # err.mapTooLarge()
         arr = bytearray(width * height)
         for (x, y), tile in ogMap.items():
             idx = (y - miny) * width + (x - minx)
-            arr[idx] = self.tileToByte.get(tile, 0)
-        return arr, self.margins
+            arr[idx] = Map.tileToByte.get(tile, 0)
+        margins = (minx, miny, width, height)
+        return arr, margins
     
     def printCompressedMap(self):
         if not self.compMap:
-            err.emptyMap()
+            return False # err.emptyMap()
         minx, miny, width, height = self.margins
         for j in range(height):
             row = ""
@@ -94,53 +87,46 @@ class Map:
                 row += self.byteToTile.get(self.compMap[idx], "?")
             print(row)
 
-    def getGoalMap(self, msg):
-        goalMap = goalMapStore.loadGoalMap(self.mode)
-        print(f"[FYI] Node {self.id} now has a map with mode {self.state}")
-        return goalMap
-
-    def compareMap(self, receiver, receiverMap):
+    def compareMap(self, node, receiver, receiverMap):
         # compare every single position of the map 
-        print(f"[FYI] Comparing Node {receiver} map {receiverMap} vs Node {self.id} map {self.map}")
         diff = 0
-        selfKeys = set(self.map.keys())
+        selfKeys = set(self.compMap.keys())
         receiverKeys = set(receiverMap.keys())
         onlyInSelfMap = selfKeys - receiverKeys                 # I can condense this to when positive is this and when negative, that. Maybe to  -> 
         onlyInReceiverMap = receiverKeys - selfKeys             # Avoid saving it by replacing it in the debugging message and use abs for the entries?
         for key in (selfKeys | receiverKeys):
-            if self.map[key] != receiverMap[key]:
+            if self.compMap.get(key) != receiverMap.get(key):
                 diff += 1
                 print("X")          # change to insert the big X in the corresponding position
             else: 
                 print("x")          # Compare to gameMap!
         for key in onlyInReceiverMap | onlyInSelfMap:
             print("M")              # change to just become an entry in disparity map
-        print(f"[UPDATE] Amount of different entries in maps: {diff}, Amount of spots only in {self.id}: {onlyInSelfMap}, Amount of spots only in {receiver}: {onlyInReceiverMap}")
+        print(f"[FYI] Amount of different entries in maps: {diff}, Amount of spots only in {node.id}: {onlyInSelfMap}, Amount of spots only in {receiver}: {onlyInReceiverMap}")
 
     # def getDifferencesBetween2Maps(self, receiverMap):
     #     pass
 
-    def compareMapToGoal(self):
+    def compareMapToGoal(self, goalMap):
         # Essentially the same as compMap but with goalMap as comparison
-        print(f"[CMP] Goal map vs Node {self.id} map")
-        selfKeys = set(self.map.keys())
-        receiverKeys = set(self.goalMap.keys())
+        selfKeys = set(self.compMap.keys())
+        receiverKeys = set(goalMap.keys())
         if selfKeys != receiverKeys:                                #if the amount of entries is not the same, abort instantly
-            print("[UPDATE] Game has not been completed yet") 
+            print("[FYI] Mode has not been completed yet") 
             return False
         for key in (selfKeys | receiverKeys):
-            if self.map[key] != self.goalMap[key]:
-                print("[UPDATE] Game has not been completed yet")   # add a reply msg with this pos is incorrect -> add a logic for that, too!
+            if self.compMap[key] != goalMap[key]:
+                print("[FYI] Mode has not been completed yet")   # add a reply msg with this pos is incorrect -> add a logic for that, too!
                 return False
-        print(f"[UPDATE] Game has been completed. Congrats!")
+        print(f"[FYI] Mode has been completed. Congrats!")
         return True
 
     def getTileFromCompressedMap(self, xPos, yPos):
         if not self.compMap:
-            return None
+            return False # err.emptyGoalMap
         minx, miny, width, height = self.margins
         if not (minx <= xPos < minx + width and miny <= yPos < miny + height):
-            return None 
+            return None # err.mapTooLarge
         idx = (yPos - miny) * width + (xPos - minx)       # Convert (x, y) → flat array index
         byte = self.compMap[idx]
         return self.byteToTile.get(byte, "?")
@@ -149,12 +135,14 @@ class Map:
         #if correct then attach the square, incorrect is X, else err.wrongPosition()
         pass
 
-    def attachmentAttempt(self, msg):      
+    def createEmptyMap():
+        return bytearray()
+
+    def attachmentAttempt(self, senderX, senderY, orientationX, orientationY):      
         # to check if the node is not being attached in a forbidden position
-        if not hasattr(self, "goalMap") or not self.goalMap:
-            err.emptyGoalMap()
-            return False
-        newX, newY = self.getOwnPos(msg)
+        if not self.compMap:
+            return None # err.emptyMap()
+        newX, newY = self.getOwnPos(senderX, senderY, orientationX, orientationY)
         allowedPos = {"+", "■"}
         tile = self.getTileFromCompressedMap(newX, newY)
         if tile in allowedPos: 
@@ -163,12 +151,11 @@ class Map:
             # start the whole map cycle
             return True
         else:
-            err.attachmentPosForbidden(self.pos(newX), self.pos(newY))
-            return False
+            return False # err.attachmentPosForbidden(self.pos(newX), self.pos(newY))
             
-    def overwriteMap(self, receiverMap, time):
-        self.map = receiverMap
-        self.t = time
+    def overwriteMap(self, node, receiverMap, time):
+        self.compMap = receiverMap
+        node.timestamp = time
 
     # def mergeMaps(self, receiverMap):
     #     mergedMap = {self,map}

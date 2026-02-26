@@ -356,6 +356,14 @@ class Message:
         return Message.getSeveralBit(msg, 11, 2)  
 
     @staticmethod
+    def getOrientationX(msg):
+        return Message.getBit(msg, 12)  
+    
+    @staticmethod
+    def getOrientationY(msg):
+        return Message.getBit(msg, 11)  
+
+    @staticmethod
     def getDONE(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
             return None #err.msgTypeIncorrect()
