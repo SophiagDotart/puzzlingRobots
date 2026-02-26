@@ -36,19 +36,18 @@ ACTION_SENDPLSREPEATMSG = 3
 ACTION_RESETROBOT = 4
 ACTION_CORRECTSTH = 5
 ACTION_SENDINITMSG = 6
+ACTION_SIGNALTOUSER = 7
 
 ACTION_CORRECTSTH_RESTARTMAP = 1
 ACTION_CORRECTSTH_TILEINCORRECT = 2
+ACTION_CORRECTSTH_FIXTILESYMBOL = 3
+ACTION_CORRECTSTH_MESSEDUPFLAGS = 4
 
-# CAN BE SEVERLY OPTIMIZED: NOT ALL ERRORS CAN BE SENT
-# MISSING A WRONG MSG
 def decodeErrorMsg(scriptCode, errorCode):
     if scriptCode == 0:
         # switchCon error
         if errorCode == 0: 
             return receiverIsBusy()
-        elif errorCode == 1:
-            return timeout()
         elif errorCode == 2:
             return olderTimestamp()
         elif errorCode == 3:
@@ -70,20 +69,12 @@ def decodeErrorMsg(scriptCode, errorCode):
         else:
             return errorMsgIncorrect()
     elif scriptCode == 2:
-        # mapFunc error
-        if errorCode == 0:
-            emptyMap()
-            return None
-        elif errorCode == 1:
-            emptyGoalMap()
-            return None # main creates a goalMap
-        elif errorCode == 2:
+        if errorCode == 2:
             # input o that place on the map that it is incorrect !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # signal to user that it is incorrect
             pass
         elif errorCode == 3:
-            mapTooLarge()
-            return None
+            return mapIncorrectLength()
         else:
             return errorMsgIncorrect()
         pass
@@ -98,8 +89,6 @@ def decodeErrorMsg(scriptCode, errorCode):
         # errorHandling error
         if errorCode == 0:
             return errorMsgIncorrect()
-        elif errorCode == 1:
-            return timeout()
         elif errorCode == 2:
             return wrongOrder()
         else:
@@ -137,12 +126,22 @@ def unknownError():
 
 def wrongOrder():
     print(f"[ERROR] I have not received crucial information ")
-    print(f"[ERROR] Timeout")
     return {"scriptCode": SCRIPTCODE_ERROR, 
             "errorCode": 2,
             "action": ACTION_SENDPLSREPEATMSG,
             "actionCode": None}
     # request to send previous msg
+
+def invalidFlagCombination():
+    print(f"[ERROR] The flag combination does not work. Will restart.")
+    return {"scriptCode": None, 
+            "errorCode": None,
+            "action": ACTION_CORRECTSTH,
+            "actionCode": ACTION_CORRECTSTH_MESSEDUPFLAGS}
+    # will restart the flags
+
+def wtfIsHappening():
+    print(f"[ERROR] Yeah, there is an error. Its prob a wrong scriptCode or errorCode. Will feign ignorance")
 
 #----- From goalMapsStorage -----
 def failedToAddGoalMap():
@@ -178,7 +177,7 @@ def attachmentAtPosForbidden(posx, posy):   #head 11 script 00100 error 010
             "action": ACTION_CORRECTSTH,
             "actionCode": ACTION_CORRECTSTH_TILEINCORRECT}
 
-def mapTooLarge():
+def mapIncorrectLength():
     print(f"[ERROR] 0110001100000 The size of the map is too big")
     # pls resend the map
     return {"scriptCode": SCRIPTCODE_MSGBUILD, #PLease resend followUpmsg !!!!!!!!!!!!!!!!!!!!!
@@ -186,6 +185,37 @@ def mapTooLarge():
             "action": ACTION_SENDPLSREPEATMSG,
             "actionCode": None}
 
+def marginsDiffer():
+    # signal to the user sth is wrong bc these do not seem to mash
+    print(f"[ERROR] The margins of the maps are different")
+    return {"scriptCode": None,
+            "errorCode": None,
+            "action": ACTION_SIGNALTOUSER,
+            "actionCode": None}
+
+def wrongTile():
+    # signal to user that that tile is incorrect
+    print(f"[ERROR] That tile does not belong there, try a different one")
+    return {"scriptCode": None,
+            "errorCode": None,
+            "action": ACTION_SIGNALTOUSER,
+            "actionCode": None}
+
+def outsideOfMargins():
+    # signal to user that tile is incorrect
+    print(f"[ERROR] That tile does not belong here. Try putting it somewhere else")
+    return {"scriptCode": None,
+            "errorCode": None,
+            "action": ACTION_SIGNALTOUSER,
+            "actionCode": None}
+
+def tileNotRecognized():
+    # this symbol is not whitelisted
+    print(f"[ERROR] I do not recognize this tile")
+    return {"scriptCode": None,
+            "errorCode": None,
+            "action": ACTION_CORRECTSTH,
+            "actionCode": ACTION_CORRECTSTH_FIXTILESYMBOL}
 
 #----- From messageBuild -----
 def msgTypeIncorrect():

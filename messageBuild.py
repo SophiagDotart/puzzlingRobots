@@ -23,6 +23,11 @@ from mapFunctions import Map
 
 class Message:
 
+    # state system variables
+    POSDONE = False
+    DONE = False
+
+    # header variables
     INIT_HEADER = 1
     FOLLOWUP_HEADER = 2
     ERROR_HEADER = 3
@@ -190,7 +195,7 @@ class Message:
         msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
             orientation = Message.getOrientation(msg)
-            DONE = Message.getDONE(msg)
+            Map.DONE = Message.getDONE(msg)
             mapData = Message.getMap(msg)
             # verify parity
             parity = Message.getSeveralBit(msg, 11, 2)         # get the parity value
@@ -204,7 +209,7 @@ class Message:
                         'parity': False}
             return {'type': 'FOLLOWUP',
                     'orientation': orientation,
-                    'DONE':DONE,
+                    'DONE': Map.DONE,
                     'mapData': mapData,
                     'parity': True}
         return {'type': 'FOLLOWUP',
@@ -217,11 +222,11 @@ class Message:
     def decodePOSMsg(msg):
         msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
-            POSDONE = Message.getPOSDONE(msg)
+            Map.POSDONE = Message.getPOSDONE(msg)
             posX = Message.getPosX(msg)
             posY = Message.getPosY(msg)
             return {'type': 'POS',
-                    'POSDONE': POSDONE,
+                    'POSDONE': Map.POSDONE,
                     'posX': posX,
                     'posY': posY}
         return {'type': 'POS',
@@ -335,7 +340,7 @@ class Message:
     def getPOSDONE(msg):
         if Message.getHeader(msg) != Message.POS_HEADER:
             return None #err.msgTypeIncorrect()
-        return Message.getBit(msg, 8)
+        return Map.POSDONE
     
     @staticmethod
     def getPosX(msg):
@@ -367,7 +372,7 @@ class Message:
     def getDONE(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
             return None #err.msgTypeIncorrect()
-        return Message.getBit(msg, 8)
+        return Map.POSDONE
 
     @staticmethod    
     def getMap(msg):

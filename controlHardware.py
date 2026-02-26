@@ -9,10 +9,12 @@ class Hw:
     
     def listenThroughModule(self, module):
         msg = self.readModule(module)
+        return msg
 
     def sendThroughRandomModule(self, msg):
         module = random.randint(0, self.AMOUNT_MODULES - 1)
-        self.sendThroughModule(msg)
+        self.sendThroughModule(msg, module)
+        return module
 
     def sendThroughModule(self, msg, module):
         pass
@@ -24,7 +26,8 @@ class Hw:
         print(f"[FYI] Initiated all hardware")
 
     def resetRobot(self):
-        self.RESET_PIN = 1
+        print(f"[FYI] Will restart the system now")
+        self.RESET_PIN = True
 
     def signalThatsWrong(self):
         pass

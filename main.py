@@ -1,7 +1,6 @@
 # Main script for the behavior of node
 
 import random
-import numpy as np
 import switchingConditions as switchCon
 import messageBuild as msgBuild
 import controlHardware as hw
@@ -12,9 +11,12 @@ import mapFunctions as mapFunc
 #----- General data -----
 NODE_ID = 1         # max 16 robots!!
 TIMER = 50
-gradualDelay = TIMER*3 # value does not matter, it just has to be bigger than 0 -> test for optimal
-GRADUALDELAYDECREASE = 0.5
+GRADUALDELAY_DECREASE = 0.5
+GRADUALDELAY_INIT = 3 * TIMER
 nameOfNewGoalmap = 1
+
+#----- Only True if debugging mode activated -----
+DEBUG = True
 
 #----- Listening phase variables -----
 MIN_LISTEN_TIMESTEP = 500
@@ -70,17 +72,12 @@ def listeningForMsg_onlyErrorAndAckAllowed(node, listeningTime):
     handleError(node, err.timeout())
     return False
 
-def calcGradualDelay(): # listeningTime in function works > 0
-    return np.floor(GRADUALDELAYDECREASE* gradualDelay) # round down so it actually becomes 0 at some point
-
 def politeGossip(node):
-    if listeningForMsg_onlyErrorAndAckAllowed(node, calcGradualDelay(), node.moduleNumber):
-        return True
-    elif calcGradualDelay() <= 0:
-        print(f"[FYI] The receiver has been busy for too long. Will find someone else to talk.")
-        return False
-    else: 
-        politeGossip(node)
+    delayTime = GRADUALDELAY_INIT
+    while delayTime > 0:
+        if listeningForMsg_onlyErrorAndAckAllowed(node, int(delayTime)):
+            return True
+        delayTime = int(delayTime* GRADUALDELAY_DECREASE)
 
 def resendLastMsg(node, msgTypeToSend):
     if msgTypeToSend == msgBuild.Message.INIT_HEADER:
@@ -99,7 +96,7 @@ def resendLastMsg(node, msgTypeToSend):
         hw.sendMsg(msgBuild.Message.createAckMsg(ACK = False, msgType = msgTypeToSend))
 
 def areWeDoneYet(node):
-    wereAreDone = mapFunc.compareMapToGoal()
+    wereAreDone = mapFunc.compareMapToGoal(goalMapStore.loadGoalMap(node.mode))
     if not wereAreDone: # there were mistakes or were not done
         return False # keep going
     elif wereAreDone:
@@ -110,17 +107,48 @@ def areWeDoneYet(node):
     else:
         handleError(node, err.unknownError)
 
+def resetFlags(node):
+    msgBuild.Message.setPOSDONEAndDONELow()
+    switchCon.INITDONE = False
+    node.ROOT = switchCon.becomeRoot()
+    node.BUSY = False
+    node.IDLE = True
+
+def validateFlags(node):
+    if node.IDLE and node.BUSY:
+        return False
+    POSDONE = msgBuild.Message.getPOSDONE()
+    if node.DONE and not (POSDONE or node.INITDONE):
+        return False
+    if POSDONE and not node.INITDONE:
+        return False
+    return True
+
+def debugIt(node, Map):
+    switchCon.printData()
+    print(f"[DEBUG] Current flags: ROOT: {node.ROOT}, BUSY: {node.BUSY}, IDLE: {node.IDLE}, INITDONE {node.INITDONE}, POSDONE: {Map.POSDONE}, DONE {Map.DONE}")
+    if validateFlags():
+        print(f"[DEBUG] No contradictions in flags")
+    msgBuild.Message.printCompressedMap()
+    if msgBuild.checkIfCompressedMapIsCorrect():
+        print(f"[DEBUG] No issues in the current map")
+    print(f"[DEBUG] Current pos: {msgBuild.Message.getPosX()}, {msgBuild.Message.getPosY()}")
+
 #----- Behavioral functions -----
 def decodeMsg(node, goalMapLib, msg):
     if not msgBuild.Message.checkIfCorrectLen(msg):
         handleError(node, err.msgLengthIncorrect())
         return
     header = msgBuild.Message.getHeader(msg)
+
     if header == msgBuild.Message.INIT_HEADER:
         decodedMsg = msgBuild.Message.decodeINITMsg(msg)
         if not handleInitMsg_establishingContact(node, decodedMsg['timestamp'], decodedMsg['mode'], decodedMsg['ROOT']):
             return # deny communication request
-        connectionEstablished = 1
+        if not validateFlags():
+            handleError(node, err.invalidFlagCombination())
+        if DEBUG:
+           debugIt(node) 
     elif header == msgBuild.Message.ACK_HEADER:
         decodedMsg = msgBuild.Message.decodeACKMsg(msg)  
         if decodedMsg['ACK']:
@@ -133,8 +161,9 @@ def decodeMsg(node, goalMapLib, msg):
                 return # I have no more information to send you
         else: # they are asking me to resend last msg
             resendLastMsg(node, decodedMsg['msgType'])
+
     elif header == msgBuild.Message.POS_HEADER:
-        if not connectionEstablished:
+        if not switchCon.INITDONE:
             handleError(node, err.wrongOrder())
         decodedMsg = msgBuild.Message.decodePOSMsg(msg)
         if decodedMsg['POSDONE']:
@@ -142,30 +171,36 @@ def decodeMsg(node, goalMapLib, msg):
             orientationX, orientationY = msgBuild.Message.getOrientationX(msg), msgBuild.Message.getOrientationY(msg)
         else:
             return # will never happen, because current map size can always be sent within a message
+        if validateFlags():
+            handleError(node, err.invalidFlagCombination())
         delay(TIMER)
         hw.sendMsg(msgBuild.Message.createAckMsg(ACK = True, msgType = msgBuild.Message.POS_HEADER))
-        posCommunicated = 1
+
     elif header == msgBuild.Message.FOLLOWUP_HEADER:
-        if not posCommunicated or not connectionEstablished:
-            handleError(node, err.wrongOrder())
         decodedMsg = msgBuild.Message.decodeFOLLOWUPMsg(msg)
+        if msgBuild.Message.getPOSDONE(decodedMsg) or not switchCon.INITDONE:
+            handleError(node, err.wrongOrder())
         # decode senders orientation
         mapFunc.getOwnPos(senderX, senderY, orientationX, orientationY) # the variables will always be set because of the set order of msgs
         mapFunc.overrideMap(decodedMsg['senderMap'])
         if not decodedMsg['parityCheck']:
             handleError(node, err.parityCheckIncorrect())
         hw.sendMsg(msgBuild.Message.createAckMsg(ACK = True, msgType = msgBuild.Message.FOLLOWUP_HEADER))
-        areWeDoneYet()
+        areWeDoneYet(node)
+        resetFlags(node)
+
     elif header == msgBuild.Message.ERROR_HEADER:
         decodedMsg = msgBuild.Message.decodeErrorMsg(msg)
-        # make a reaction function to all possible errors
+        handleError(node, err.decodeErrorMsg(decodedMsg['scriptcode']), decodedMsg['errorCode'])
+
     elif header == msgBuild.Message.INSTRUCT_HEADER:
         decodedMsg = msgBuild.Message.decodeInstructMsg(msg)
+        node.goalMapLib.goalMap = goalMapLib.loadGoalMap(switchCon.processInstructMsg(decodedMsg['mode']))
+        node.mapHandler.compMap = mapFunc.createEmptyMap()
         switchCon.processInstructMsg(decodedMsg['mode'])
-        node.compGoalMap = mapFunc.serialize(goalMapLib.getGoalMap(decodedMsg['mode']))
-        node.compMap = mapFunc.createEmptyMap()
         # now keep spreading the instruction
         hw.sendThroughRandomModule(node.createINITmsg(senderID = NODE_ID, ROOT = node.ROOT, mode = node.mode, timestamp = node.timestamp))
+    
     elif header == msgBuild.Message.SYSUPDATE_HEADER:
         decodedMsg = msgBuild.Message.decodeSysUpdateMsg(msg)   # decodedMsg contains: updateType, INSTDONE, instructData
         if not decodedMsg['parityCheck']:
@@ -187,10 +222,10 @@ def decodeMsg(node, goalMapLib, msg):
             return True
         else:
             # sender is done transmitting all information yet. Wait and listen
-            success = listeningForMsg_onlyErrorAndAckAllowed(node, TIMER)
-            if not success:
+            if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER):
                 handleError(node, err.timeout())
                 return False
+            
     else:
         handleError(node, err.msgTypeIncorrect())
         return
@@ -202,13 +237,13 @@ def handleError(node, error):
             hw.sendThroughModule(msgBuild.Message.createErrorMsg(errorCode = error['errorCode'], scriptCode = error['scriptCode']), node.moduleNumber)
             print(f"[FYI] Sent the error to the sender")
         else:
-            err.unknownError()
+            err.wtfIsHappening()
     elif action == err.ACTION_SENDPLSREPEATMSG:
         if error['scriptCode'] is not None and error['errorCode'] is not None:
             hw.sendThroughModule(msgBuild.Message.createAckMsg(ACK = False, msgType = error['scriptERROR']), node.moduleNumber)
             print(f"[FYI] Sent an ACk msg to the sender to please resend the last msg")
         else:
-            err.unknownError()   
+            err.wtfIsHappening()   
     elif action == err.ACTION_IGNORE:
         print(f"[FYI] I ignored the error.Returning to main")   
     elif action == err.ACTION_SENDINITMSG:
@@ -221,14 +256,25 @@ def handleError(node, error):
         if thatSth == err.ACTION_CORRECTSTH_RESTARTMAP:
             node.mapData = bytearray()
             print(f"[FYI] Restarted the map and the timestep")
-        elif thatSth == err.ACTION_CORRECTSTH_TILEINCORRECT:
-            hw.signalThatsWrong()
-            # put a signal in map that that tile was laid
+        elif signalThat == err.ACTION_CORRECTSTH_FIXTILESYMBOL:
+            mapFunc.setTileInCompressedMap(node.posX, node.posY, mapFunc.tileToByte["?"]) 
+        elif signalThat == err.ACTION_CORRECTSTH_MESSEDUPFLAGS:
+            resetFlags()           
         else:
-            handleError(node, err.unknownError())   
+            err.wtfIsHappening()   
+    elif action == err.ACTION_SIGNALTOUSER:
+        signalThat = error['actionCode']
+        if signalThat == err.ACTION_CORRECTSTH_TILEINCORRECT:
+            hw.signalThatsWrong()
+        else: 
+            err.wtfIsHappening()
+    else:
+        err.wtfIsHappening()
 
 def handleInitMsg_establishingContact(node, senderTimestep, senderMode, senderROOT):
     result = switchCon.processInitMsg(senderTimestep, senderMode, senderROOT)
+    if validateFlags():
+        handleError(node, err.invalidFlagCombination())
     if result == switchCon.RESULT_ROOT:
         handleError(node, err.receiverIsROOT())
         return False
@@ -248,7 +294,27 @@ def handleInitMsg_establishingContact(node, senderTimestep, senderMode, senderRO
         handleError(node, err.unknownError)
         return None
 
-    
+def handleMapErrors(node, error):
+    if error == mapFunc.MAPERROR_EMPTYMAP:
+        handleError(err.emptyMap())
+    elif error == mapFunc.MAPERROR_EMPTYGOALMAP:
+        handleError(err.emptyGoalMap())
+    elif error == mapFunc.MAPERROR_INCORRECTLENGTH:
+        handleError(err.mapIncorrectLength())
+    elif error == mapFunc.IAMAROOT:
+        handleError(err.receiverIsROOT())
+    elif error == mapFunc.MARGINSDIFFER:
+        handleError(err.marginsDiffer())
+    elif error == mapFunc.ATTACHMENTFORBIDDEN:
+        handleError(err.attachmentAtPosForbidden(node.posX, node.posY))
+    elif error == mapFunc.WRONGTILE:
+        handleError(err.wrongTile())
+    elif error == mapFunc.OUTSIDEOFMARGINS:
+        handleError(err.outsideOfMargins())
+    elif error == mapFunc.UNRECOGNIZEDTILE:
+        handleError(err.tileNotRecognized())
+    else:
+        handleError(err.unknownError())
 
 #----- Main loop -----
 def main():
@@ -261,7 +327,7 @@ def main():
             for sensorNumber in range(AMOUNT_MODULES):
                 msg = hw.listenThroughModule(sensorNumber) # the actual polling and reacting to the msg is in control hardware
                 if msg is not None:
-                    decodeMsg(node, goalMapLib, msg, sensorNumber)
+                    decodeMsg(node, goalMapLib, msg)
         delay(TIMER)
 
         #the msg Im using here has to be fresh from the sender! Find a way
@@ -269,18 +335,18 @@ def main():
         print(f"[FYI] Entering talking phase")
         node.moduleNumber = hw.sendThroughRandomModule(msgBuild.Message.createInitMsg(senderID = NODE_ID, ROOT = node.ROOT, mode = node.mode, timestamp = node.timestamp))
         delay(TIMER)
-        if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER, node.moduleNumber):
+        if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER):
             handleError(node, err.timeout())
             node.timeout()
         delay(TIMER)        
         hw.sendThroughModule(msgBuild.Message.createPOSMsg(POSDONE = node.POSDONE, posX = node.posX, posY = node.posY), node.moduleNumber)
         delay(TIMER)
-        if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER, node.moduleNumber):
+        if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER):
             handleError(node, err.timeout())
         delay(TIMER)
         hw.sendThroughModule((msgBuild.Message.createFollowUpMsg(orientation = node.orientation, DONE = node.DONE, mapData = node.mapData)), node.moduleNumber)
         delay(TIMER)
-        if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER, node.moduleNumber):
+        if not listeningForMsg_onlyErrorAndAckAllowed(node, TIMER):
             handleError(node, err.timeout())
         delay(TIMER)
         # Cycle has been completed -> stay in the while-loop
