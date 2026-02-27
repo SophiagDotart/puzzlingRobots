@@ -204,6 +204,7 @@ def decodeMsg(node, goalMapLib, msg):
         node.goalMapLib.goalMap = goalMapLib.loadGoalMap(switchCon.processInstructMsg(decodedMsg['mode']))
         node.mapHandler.compMap = mapFunc.createEmptyMap()
         switchCon.processInstructMsg(decodedMsg['mode'])
+        node.mapHandler.resetPosition()
         # now keep spreading the instruction
         hw.sendThroughRandomModule(node.createINITmsg(senderID = NODE_ID, ROOT = node.ROOT, mode = node.mode, timestamp = node.timestamp))
         if DEBUG:

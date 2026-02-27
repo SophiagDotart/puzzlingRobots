@@ -46,11 +46,17 @@ class Map:
         self._compGoalMap = bytearray()
         self.margins = (0, 0, 0, 0)     # min(x), min(y), width, height
         self.goalMargins = (0, 0, 0, 0)
+        self.x = 0
+        self.y = 0
 
     def deleteCompMap(self):   
         self._compMap.clear()
         self.margins = (0, 0, 0, 0)
         print(f"[FYI] compressed map has been deleted") 
+    
+    def resetPosition(self):
+        self.x = 0
+        self.y = 0
         
     #----- Find and update own position in map -----
     @staticmethod
