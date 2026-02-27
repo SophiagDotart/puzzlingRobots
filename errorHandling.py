@@ -16,12 +16,12 @@
 #. 2 = mapFunctions
 #. 2 0 = the map is missing
 #. 2 1 = the goal map is missing
-#. 2 2 = the tile is trying to attach itself to a forbidden position within the map
+#. 2 2 = Forbidden position for tile
 #. 2 3 = the size of the map is incorrect
 #. 2 4 = the margins of the 2 maps differ
 #. 2 5 = this tile does not belong in this position
 #. 2 6 = this tile is outside the margins
-#. 2 7 = this tile is not recognized
+#. 2 7 = this tile symbol is not recognized
 #
 #. 3 = goalMapStorage
 #. 3 0 = failed to add a new goalMap
@@ -33,6 +33,7 @@
 #. 4 3 = I have no idea what that error is, will ignore it
 #. 4 4 = that flag combination is not possible. Please correct it
 #. 4 5 = I have no idea what is happening and won't even try
+#
 #. 5 = hardware
 #       nothing here yet. Add your own!
 
@@ -43,7 +44,7 @@
 # 4 = reset robot
 # 5 = actually try to correct the mistake
 # 5 1 = deletes and adds new map
-# 5 2 = enters in map that that tile is in an incorrect position
+# 5 2 = signals in map that this tile is in an incorrect position
 # 5 3 = replaces whatever symbol that tile had with a ?
 # 5 4 = resets the flags so communication can restart anew
 # 6 = send an INIT msg to update their status instead
