@@ -5,7 +5,7 @@
 
 # Maybe have a flag description here?
 
-import random
+import random 
 from mapFunctions import Map
 
 # tested in input race simulation
