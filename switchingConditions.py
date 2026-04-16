@@ -9,7 +9,7 @@ import random
 from mapFunctions import Map
 
 # tested in input race simulation
-timeToPassive = 50                  
+TIMETOPASSIVE = 50                  
 INITIAL_ROOT_PROBABILITY = 0.8 
 DECAY_RATE = 0.05 
 
@@ -41,7 +41,7 @@ class Node:
         self.lastRcvMsgHeader = None
         self.mapHandler = Map()
         self.moduleNumber = None
-        print(f"[FYI] Node {self.ID} was created")
+        # print(f"[FYI] Node {self.ID} was created")
         # For statistics
         self.lastUpdate = 0
         self.sentMsgs = 0
@@ -53,8 +53,9 @@ class Node:
         return random.random() < expDecay(self.timestamp, INITIAL_ROOT_PROBABILITY, DECAY_RATE)  
 
     def timeout(self):
-        # if a node has not been updated for timeToPassive steps then become passive
-        if self.lastUpdate > timeToPassive:
+        # if a node has not been updated for TIMETOPASSIVE steps then become passive
+        #if (self.lastUpdate - self.t) >= TIMETOPASSIVE:
+        if self.lastUpdate > TIMETOPASSIVE:
             self.IDLE = 1
             self.ROOT = False
             self.delayIfBusy = False

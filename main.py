@@ -110,6 +110,7 @@ def areWeDoneYet(node):
 def resetFlags(node):
     msgBuild.Message.setPOSDONEAndDONELow()
     switchCon.INITDONE = False
+    node.lastUpdate = 0
     node.ROOT = switchCon.becomeRoot()
     node.BUSY = False
     node.IDLE = True
