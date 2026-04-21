@@ -137,7 +137,7 @@ def debugIt(node, Map):
 
 #----- Behavioral functions -----
 def decodeMsg(node, goalMapLib, msg):
-    if not msgBuild.Message.checkIfCorrectLen(msg):
+    if msgBuild.Message.checkIfCorrectLen(msg) is None:
         handleError(node, err.msgLengthIncorrect())
         return
     header = msgBuild.Message.getHeader(msg)

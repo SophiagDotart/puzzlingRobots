@@ -67,7 +67,7 @@ class Message:
     @staticmethod
     def setSeveralBit(msg: int, startBit: int, width: int, value: int) -> int:
         mask = ((1 << width) - 1) << startBit
-        value = value & ((1 << width) - 1) << startBit
+        value = (value & ((1 << width) - 1)) << startBit
         return (msg & ~mask) | value
         
     @staticmethod
@@ -99,7 +99,7 @@ class Message:
         msg = Message.setSeveralBit(msg, 13, 3, Message.FOLLOWUP_HEADER)
         msg = Message.setSeveralBit(msg, 11, 2, orientation)
         msg = Message.setBit(msg, 8, DONE)
-        msg = Message.setSeveralBit(msg, 7, 8, mapData)
+        msg = Message.setSeveralBit(msg, 0, 8, mapData)
         # add parity
         msg = Message.setSeveralBit(msg, 9, 2, 0)          # make sure parity bits do not influence in the calc product
         msg = Message.setSeveralBit(msg, 9, 2, Message.calcParity(msg))
@@ -118,7 +118,7 @@ class Message:
         msg = 0 
         msg = Message.setSeveralBit(msg, 13, 3, Message.SYSUPDATE_HEADER)
         msg = Message.setSeveralBit(msg, 8, 3, updateCode)  
-        msg = Message.setSeveralBit(msg, 5, 8, updateData)
+        msg = Message.setSeveralBit(msg, 0, 8, updateData)
         # add parity
         msg = Message.setSeveralBit(msg, 11, 2, 0)          # make sure parity bits do not influence in the calc product
         msg = Message.setSeveralBit(msg, 11, 2, Message.calcParity(msg))
@@ -130,7 +130,7 @@ class Message:
         msg = Message.setSeveralBit(msg, 13, 3, Message.INSTRUCT_HEADER)
         msg = Message.setSeveralBit(msg, 9, 4, instMode)
         msg = Message.setBit(msg, 8, INSTDONE)
-        msg = Message.setSeveralBit(msg, 7, 8, instructData)
+        msg = Message.setSeveralBit(msg, 0, 8, instructData)
         return msg
     
     @staticmethod 
@@ -163,7 +163,7 @@ class Message:
     @staticmethod
     def checkIfCorrectLen(buf: bytearray):
         if len(buf) != 2:
-            return False        # err.msgLengthIncorrect()
+            return None        # err.msgLengthIncorrect()
         return (buf[0] << 8) | buf[1]
 
     #----- decode msgs -----
@@ -171,12 +171,12 @@ class Message:
     def decodeINITMsg(msg):
         msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
-            senderID = Message.getSenderID(msg)
+            senderID = Message.getsenderID(msg)
             ROOT = Message.getROOT(msg)
             mode = Message.getMode(msg)
             timestamp = Message.getTimestep(msg)
             return {'type' : 'INIT',
-                    'senderId': senderID,
+                    'senderID': senderID,
                     'ROOT': ROOT,
                     'mode': mode,
                     'timestamp': timestamp}
@@ -191,11 +191,11 @@ class Message:
         msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
             orientation = Message.getOrientation(msg)
-            Map.DONE = Message.getDONE(msg)
+            DONE = Message.getDONE(msg)
             mapData = Message.getMap(msg)
             # verify parity
-            parity = Message.getSeveralBit(msg, 11, 2)         # get the parity value
-            msg = Message.setSeveralBit(msg, 11, 2, 0)         # zero that value s parity bits dont screw the parity check
+            parity = Message.getSeveralBit(msg, 9, 2)         # get the parity value
+            msg = Message.setSeveralBit(msg, 9, 2, 0)         # zero that value s parity bits dont screw the parity check
             if not parity == Message.calcParity(msg):
                 return {'type': 'FOLLOWUP',
                         'orientation': None,
@@ -204,7 +204,7 @@ class Message:
                         'parity': False}                        #err.parityCheckIncorrect()
             return {'type': 'FOLLOWUP',
                     'orientation': orientation,
-                    'DONE': Map.DONE,
+                    'DONE': DONE,
                     'mapData': mapData,
                     'parity': True}
         return {'type': 'FOLLOWUP',
@@ -232,6 +232,8 @@ class Message:
     @staticmethod
     def decodeERRORMsg(msg):                 # decode the meaning of the error in err.decodeERR()
         msg = Message.checkIfCorrectLen(msg)
+        print(f"RAW MSG INT: {msg:016b}") 
+        print(f"HEADER: {Message.getHeader(msg)}")
         if msg is not None:
             scriptCode = Message.getScriptCode(msg)
             errorCode = Message.getErrorCode(msg)
@@ -308,7 +310,7 @@ class Message:
         return Message.getSeveralBit(msg, 13, 3)
 
     @staticmethod
-    def getSenderID(msg):
+    def getsenderID(msg):
         if Message.getHeader(msg) != Message.INIT_HEADER:
             return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 9, 4)
@@ -335,7 +337,7 @@ class Message:
     def getPOSDONE(msg):
         if Message.getHeader(msg) != Message.POS_HEADER:
             return None         # err.msgTypeIncorrect()
-        return Map.POSDONE
+        return Message.getBit(msg, 8)
     
     @staticmethod
     def getPosX(msg):
@@ -367,13 +369,14 @@ class Message:
     def getDONE(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
             return None         # err.msgTypeIncorrect()
-        return Map.POSDONE
+        return Message.getBit(msg, 8)
 
     @staticmethod    
     def getMap(msg):
         if Message.getHeader(msg) != Message.FOLLOWUP_HEADER:
             return None         # err.msgTypeIncorrect()
-        return Map.deserialize(Message.getSeveralBit(msg, 0, 8))
+        return Message.getSeveralBit(msg, 0, 8)         # just for testing
+        # return Map.deserialize(Message.getSeveralBit(msg, 0, 8))
 
     @staticmethod    
     def getScriptCode(msg):
