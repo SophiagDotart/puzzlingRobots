@@ -35,22 +35,15 @@ class Message:
     SYSUPDATE_COMPLETEUPDATE = 2
     SYSUPDATE_NEWGOALMAP = 3
 
-    def __init__(Message, senderID, senderRootFlag, instructionComplete, instructionMode, positionDone, posX, posY, extraErrorBits, senderACK, senderMsgType, 
-                 senderMap, senderMode, senderRFIDOrientation, senderDoneFlag, senderTimestamp, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
-        Message.senderID = senderID
-        Message.ROOT = senderRootFlag
-        Message.DONE = senderDoneFlag
-        Message.mode = senderMode
-        Message.timestamp = senderTimestamp
+    def __init__(Message, instructionMode, posX, posY, extraErrorBits, senderACK, senderMsgType, 
+                 senderMap, senderRFIDOrientation, senderErrorCode, senderScriptCode, instructionUpdateCode, instructionUpdateData):
         Message.orientation = senderRFIDOrientation
         Message.map = senderMap
         Message.scriptCode = senderScriptCode
         Message.errorCode = senderErrorCode
         Message.updateCode = instructionUpdateCode
         Message.updateData = instructionUpdateData
-        Message.INSTDONE = instructionComplete
         Message.instMode = instructionMode
-        Message.POSDONE = positionDone
         Message.posX = posX
         Message.posY = posY
         Message.extraErrorBits = extraErrorBits
@@ -169,7 +162,7 @@ class Message:
     #----- decode msgs -----
     @staticmethod
     def decodeINITMsg(msg):
-        msg = Message.checkIfCorrectLen(msg)
+        assert isinstance(msg, int), "decodeINITMsg expects int"
         if msg is not None:
             senderID = Message.getsenderID(msg)
             ROOT = Message.getROOT(msg)
@@ -188,7 +181,6 @@ class Message:
     
     @staticmethod
     def decodeFOLLOWUPMsg(msg):
-        msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
             orientation = Message.getOrientation(msg)
             DONE = Message.getDONE(msg)
@@ -215,13 +207,12 @@ class Message:
     
     @staticmethod
     def decodePOSMsg(msg):
-        msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
-            Map.POSDONE = Message.getPOSDONE(msg)
+            POSDONE = Message.getPOSDONE(msg)
             posX = Message.getPosX(msg)
             posY = Message.getPosY(msg)
             return {'type': 'POS',
-                    'POSDONE': Map.POSDONE,
+                    'POSDONE': POSDONE,
                     'posX': posX,
                     'posY': posY}
         return {'type': 'POS',
@@ -231,9 +222,8 @@ class Message:
     
     @staticmethod
     def decodeERRORMsg(msg):                 # decode the meaning of the error in err.decodeERR()
-        msg = Message.checkIfCorrectLen(msg)
-        print(f"RAW MSG INT: {msg:016b}") 
-        print(f"HEADER: {Message.getHeader(msg)}")
+        print(f"RAW MSG INT: {msg:016b}")           # for test only
+        print(f"HEADER: {Message.getHeader(msg)}")  # for test only
         if msg is not None:
             scriptCode = Message.getScriptCode(msg)
             errorCode = Message.getErrorCode(msg)
@@ -246,7 +236,6 @@ class Message:
     
     @staticmethod
     def decodeINSTRUCTMsg(msg):
-        msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
             instMode = Message.getInstMode(msg)
             INSTDONE = Message.getINSTDONE(msg)
@@ -262,7 +251,6 @@ class Message:
 
     @staticmethod
     def decodeSysUpdateMsg(msg):
-        msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
             updateCode = Message.getUpdateCode(msg)
             updateData = Message.getUpdateData(msg)
@@ -293,7 +281,6 @@ class Message:
 
     @staticmethod
     def decodeACKMsg(msg):
-        msg = Message.checkIfCorrectLen(msg)
         if msg is not None:
             ACK = Message.getACK(msg)
             msgType = Message.getLastMsgType(msg)

@@ -118,26 +118,26 @@ def resetFlags(node):
 def validateFlags(node):
     if node.IDLE and node.BUSY:
         return False
-    POSDONE = msgBuild.Message.getPOSDONE()
-    if node.DONE and not (POSDONE or node.INITDONE):
+    if node.DONE and not (node.POSDONE or node.INITDONE):
         return False
-    if POSDONE and not node.INITDONE:
+    if node.POSDONE and not node.INITDONE:
         return False
     return True
 
-def debugIt(node, Map):
-    switchCon.printData()
-    print(f"[DEBUG] Current flags: ROOT: {node.ROOT}, BUSY: {node.BUSY}, IDLE: {node.IDLE}, INITDONE {node.INITDONE}, POSDONE: {Map.POSDONE}, DONE {Map.DONE}")
-    if validateFlags():
+def debugIt(node):
+    node.printData()
+    print(f"[DEBUG] Current flags: ROOT: {node.ROOT}, BUSY: {node.BUSY}, IDLE: {node.IDLE}, INITDONE {node.INITDONE}, POSDONE: {node.POSDONE}, DONE {node.DONE}")
+    if validateFlags(node):
         print(f"[DEBUG] No contradictions in flags")
-    msgBuild.Message.printCompressedMap()
-    if msgBuild.checkIfCompressedMapIsCorrect():
+    node.mapHandler.printCompressedMap()
+    if node.mapHandler.checkIfCompressedMapIsCorrect():
         print(f"[DEBUG] No issues in the current map")
-    print(f"[DEBUG] Current pos: {msgBuild.Message.getPosX()}, {msgBuild.Message.getPosY()}")
+    print(f"[DEBUG] Current pos: {node.mapHandler.x}, {node.mapHandler.y}")
 
 #----- Behavioral functions -----
 def decodeMsg(node, goalMapLib, msg):
-    if msgBuild.Message.checkIfCorrectLen(msg) is None:
+    msg = msgBuild.Message.checkIfCorrectLen(msg)
+    if msg is None:
         handleError(node, err.msgLengthIncorrect())
         return
     header = msgBuild.Message.getHeader(msg)
@@ -146,7 +146,7 @@ def decodeMsg(node, goalMapLib, msg):
         decodedMsg = msgBuild.Message.decodeINITMsg(msg)
         if not handleInitMsg_establishingContact(node, decodedMsg['timestamp'], decodedMsg['mode'], decodedMsg['ROOT']):
             return      # deny communication request
-        if not validateFlags():
+        if not validateFlags(node):
             handleError(node, err.invalidFlagCombination())
         if DEBUG:
            debugIt(node) 
@@ -172,7 +172,7 @@ def decodeMsg(node, goalMapLib, msg):
             orientationX, orientationY = msgBuild.Message.getOrientationX(msg), msgBuild.Message.getOrientationY(msg)
         else:
             return      # will never happen, because current map size can always be sent within a message
-        if validateFlags():
+        if not validateFlags(node):
             handleError(node, err.invalidFlagCombination())
         delay(TIMER)
         hw.sendMsg(msgBuild.Message.createAckMsg(ACK = True, msgType = msgBuild.Message.POS_HEADER))
@@ -268,9 +268,9 @@ def handleError(node, error):
         if thatSth == err.ACTION_CORRECTSTH_RESTARTMAP:
             node.mapData = bytearray()
             print(f"[FYI] Restarted the map and the timestep")
-        elif signalThat == err.ACTION_CORRECTSTH_FIXTILESYMBOL:
+        elif thatSth == err.ACTION_CORRECTSTH_FIXTILESYMBOL:
             mapFunc.setTileInCompressedMap(node.posX, node.posY, mapFunc.tileToByte["?"]) 
-        elif signalThat == err.ACTION_CORRECTSTH_MESSEDUPFLAGS:
+        elif thatSth == err.ACTION_CORRECTSTH_MESSEDUPFLAGS:
             resetFlags()           
         else:
             err.wtfIsHappening()   
@@ -284,8 +284,8 @@ def handleError(node, error):
         err.wtfIsHappening()
 
 def handleInitMsg_establishingContact(node, senderTimestep, senderMode, senderROOT):
-    result = switchCon.processInitMsg(senderTimestep, senderMode, senderROOT)
-    if validateFlags():
+    result = node.processInitMsg(senderTimestep, senderMode, senderROOT)
+    if not validateFlags(node):
         handleError(node, err.invalidFlagCombination())
     if result == switchCon.RESULT_ROOT:
         handleError(node, err.receiverIsROOT())

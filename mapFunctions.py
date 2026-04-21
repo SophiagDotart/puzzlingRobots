@@ -99,7 +99,7 @@ class Map:
     def printCompressedMap(self):
         print(f"[DEBUG] This is my current compressed map:")
         if not self._compMap:
-            return self.MAPERROR_EMPTYMAP       # err.emptyMap()
+            return #self.MAPERROR_EMPTYMAP       # err.emptyMap()
         minx, miny, width, height = self.margins
         for j in range(height):
             row = ""
@@ -183,7 +183,8 @@ class Map:
             return True
         
     def checkIfCompressedMapIsCorrect(self):        # length correct? values within expected bounds? correct dimensions?
-        expectedSize = self.width * self.height
+        minx, miny, width, height = self.margins
+        expectedSize = width * height
         if len(self._compMap) != expectedSize:
             return False
         for i in range(len(self._compMap)):

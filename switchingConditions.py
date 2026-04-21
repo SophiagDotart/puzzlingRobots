@@ -31,8 +31,8 @@ def expDecay(t, pFalse, dec):
 #----- Robot identifiers ----
 class Node:
     def __init__(self, nodeID):     # starting conditions
-        self.ID = nodeID
-        self.IDLE = 1
+        self.nodeID = nodeID
+        self.IDLE = True
         self.ROOT = False
         self.timestamp = 0
         # For communications and priority
@@ -41,6 +41,10 @@ class Node:
         self.lastRcvMsgHeader = None
         self.mapHandler = Map()
         self.moduleNumber = None
+        # Message flags
+        self.DONE = False
+        self.INSTDONE = False
+        self.POSDONE = False
         # print(f"[FYI] Node {self.ID} was created")
         # For statistics
         self.lastUpdate = 0
