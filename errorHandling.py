@@ -150,7 +150,7 @@ def wrongOrder():
     return {"scriptCode": SCRIPTCODE_ERROR, 
             "errorCode": 2,
             "action": ACTION_SENDPLSREPEATMSG,
-            "actionCode": None}
+            "actionCode": None,}
     # request to send previous msg
 
 def invalidFlagCombination():

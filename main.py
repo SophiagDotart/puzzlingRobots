@@ -3,11 +3,11 @@
 import random
 import switchingConditions as switchCon
 import messageBuild as msgBuild
-import controlHardware as hw
+from controlHardware import Hw
 import errorHandling as err
 import goalMapsStorage as goalMapStore
 import mapFunctions as mapFunc
-
+hw = Hw()
 #----- General data -----
 NODE_ID = 1         # max 16 robots!!
 TIMER = 50                          # test experimentally
@@ -16,7 +16,7 @@ GRADUALDELAY_INIT = 3 * TIMER
 nameOfNewGoalmap = 1
 
 #----- Only True if debugging mode activated -----
-DEBUG = True
+DEBUG = False
 
 #----- Listening phase variables -----
 MIN_LISTEN_TIMESTEP = 500
@@ -136,7 +136,10 @@ def debugIt(node):
 
 #----- Behavioral functions -----
 def decodeMsg(node, goalMapLib, msg):
-    msg = msgBuild.Message.checkIfCorrectLen(msg)
+    #msg = msgBuild.Message.checkIfCorrectLen(msg) 
+    if DEBUG:
+        print(f"[TRACE] msg int: {msg:016b}")
+        print(f"[TRACE] header: {msgBuild.Message.getHeader(msg)}")
     if msg is None:
         handleError(node, err.msgLengthIncorrect())
         return
@@ -146,6 +149,7 @@ def decodeMsg(node, goalMapLib, msg):
         decodedMsg = msgBuild.Message.decodeINITMsg(msg)
         if not handleInitMsg_establishingContact(node, decodedMsg['timestamp'], decodedMsg['mode'], decodedMsg['ROOT']):
             return      # deny communication request
+        hw.sendMsg(msgBuild.Message.createAckMsg(ACK = True, msgType = msgBuild.Message.INIT_HEADER))
         if not validateFlags(node):
             handleError(node, err.invalidFlagCombination())
         if DEBUG:
@@ -252,8 +256,8 @@ def handleError(node, error):
             err.wtfIsHappening()
     elif action == err.ACTION_SENDPLSREPEATMSG:
         if error['scriptCode'] is not None and error['errorCode'] is not None:
-            hw.sendThroughModule(msgBuild.Message.createAckMsg(ACK = False, msgType = error['scriptERROR']), node.moduleNumber)
-            print(f"[FYI] Sent an ACk msg to the sender to please resend the last msg")
+            hw.sendThroughModule(msgBuild.Message.createAckMsg(ACK = False, msgType = error['scriptCode']), node.moduleNumber)
+            print(f"[FYI] Sent an ACK msg to the sender to please resend the last msg")
         else:
             err.wtfIsHappening()   
     elif action == err.ACTION_IGNORE:
