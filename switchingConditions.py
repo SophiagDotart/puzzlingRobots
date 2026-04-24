@@ -17,7 +17,7 @@ DECAY_RATE = 0.05
 RESULT_BUSY = 1
 RESULT_ROOT = 2
 RESULT_MODE = 3
-RESULT_TIMESTEP = 4
+RESULT_TIMESTAMP = 4
 RESULT_EQUAL = 5
 RESULT_COMMUNICATIONACCEPTED = 6
 
@@ -41,10 +41,12 @@ class Node:
         self.lastRcvMsgHeader = None
         self.mapHandler = Map()
         self.moduleNumber = None
+        self.INITIATOR = False
         # Message flags
         self.DONE = False
-        self.INSTDONE = False
+        self.INITDONE = False
         self.POSDONE = False
+        self.INITDONE = False
         # print(f"[FYI] Node {self.ID} was created")
         # For statistics
         self.lastUpdate = 0
@@ -80,7 +82,7 @@ class Node:
         self.mode = instructMode
         self.timestamp += 1
 
-    def processInitMsg(self, senderTimestep, senderMode, senderROOT):    # reacts to INIT
+    def processInitMsg(self, senderTimestamp, senderMode, senderROOT):    # reacts to INIT
         # IDLE > BUSY > ROOT > MODE > TIMESTAMPS
         self.timestamp += 1
         if (self.IDLE):
@@ -107,14 +109,14 @@ class Node:
                         self.IDLE = not self.BUSY
                         return RESULT_MODE          # err.modeIsDifferent()
                     else:
-                        if senderTimestep > self.timestamp:
+                        if senderTimestamp > self.timestamp:
                             self.INITDONE = True
                             return RESULT_COMMUNICATIONACCEPTED
-                        elif senderTimestep < self.timestamp:
+                        elif senderTimestamp < self.timestamp:
                             self.ROOT = self.becomeRoot() 
                             self.BUSY = False
                             self.IDLE = not self.BUSY
-                            return RESULT_TIMESTEP  # err.olderTimestamp()
+                            return RESULT_TIMESTamp  # err.olderTimestamp()
                         else:
                             print(f"[UPDATE] Communicating nodes have the same timestamps and modes, so no exchange")
                             self.ROOT = self.becomeRoot() 

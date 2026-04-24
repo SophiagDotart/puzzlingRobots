@@ -167,7 +167,7 @@ class Message:
             senderID = Message.getsenderID(msg)
             ROOT = Message.getROOT(msg)
             mode = Message.getMode(msg)
-            timestamp = Message.getTimestep(msg)
+            timestamp = Message.getTimestamp(msg)
             return {'type' : 'INIT',
                     'senderID': senderID,
                     'ROOT': ROOT,
@@ -315,7 +315,7 @@ class Message:
         return Message.getSeveralBit(msg, 4, 4)    
     
     @staticmethod
-    def getTimestep(msg):
+    def getTimestamp(msg):
         if Message.getHeader(msg) != Message.INIT_HEADER:
             return None         # err.msgTypeIncorrect()
         return Message.getSeveralBit(msg, 0, 4)  
