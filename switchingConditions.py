@@ -116,7 +116,7 @@ class Node:
                             self.ROOT = self.becomeRoot() 
                             self.BUSY = False
                             self.IDLE = not self.BUSY
-                            return RESULT_TIMESTamp  # err.olderTimestamp()
+                            return RESULT_TIMESTAMP  # err.olderTimestamp()
                         else:
                             print(f"[UPDATE] Communicating nodes have the same timestamps and modes, so no exchange")
                             self.ROOT = self.becomeRoot() 
