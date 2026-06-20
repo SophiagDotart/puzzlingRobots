@@ -19,6 +19,7 @@
     - Implement validation system for the RSPA
     - support directed communication
     - support input takeover
+    - "previous exchange partners list" that only allows communication change once a certain time period has passed.
 
  -> Good 
     - Cleaner separation of abstraction levels in msg conversion

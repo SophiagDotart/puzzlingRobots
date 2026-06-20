@@ -317,6 +317,7 @@ def handleInitMsg_establishingContact(node, senderTimestamp, senderMode, senderR
         handleError(node, err.olderTimestamp())
         return False
     elif result == switchCon.RESULT_COMMUNICATIONACCEPTED:
+        node.becomeROOT()
         return True
     elif result == switchCon.RESULT_EQUAL:
         return False        # this is irrelevant. Nothing needs to happen

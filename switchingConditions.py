@@ -77,7 +77,7 @@ class Node:
     #----- "How to manage msg way" functions -----
     def processInstructMsg(self, instructMode):     # reacts to Instruct
         self.BUSY = True
-        self.IDLE = not self.BUSY
+        self.IDLE = False
         self.ROOT = True
         self.mode = instructMode
         self.timestamp += 1
@@ -87,6 +87,7 @@ class Node:
         self.timestamp += 1
         if (self.IDLE):
             self.INITDONE = True
+            self.ROOT = self.becomeRoot() 
             return RESULT_COMMUNICATIONACCEPTED
         else:
             if self.BUSY:
