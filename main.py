@@ -100,10 +100,7 @@ def areWeDoneYet(node):
     if not wereAreDone: 
         return False                # there were mistakes or mode not complete
     elif wereAreDone:
-        # Mode completed!
-        # maybe set timestamp to infinity and only send out the message 
-        # maybe light up funny
-        return True
+        return True                 # mode complete :) 
     else:
         handleError(node, err.unknownError)
 
@@ -198,13 +195,20 @@ def decodeMsg(node, goalMapLib, msg):
         if msgBuild.Message.getPOSDONE(decodedMsg) or not switchCon.INITDONE:
             handleError(node, err.wrongOrder())
         node.INITIATOR = False
-        # decode senders orientation
-        mapFunc.getOwnPos(senderX, senderY, orientationX, orientationY)     # the variables will always be set because of the set order of msgs
-        mapFunc.overrideMap(decodedMsg['senderMap'])
         if not decodedMsg['parityCheck']:
             handleError(node, err.parityCheckIncorrect())
         hw.sendMsg(msgBuild.Message.createAckMsg(ACK = True, msgType = msgBuild.Message.FOLLOWUP_HEADER))
-        areWeDoneYet(node)
+        # decode senders orientation
+        mapFunc.getOwnPos(senderX, senderY, orientationX, orientationY)     # the variables will always be set because of the set order of msgs
+        mapFunc.overrideMap(decodedMsg['senderMap'])
+        node.timestamp += 1
+        node.ROOT = node.becomeROOT()
+        if areWeDoneYet(node):
+            # stop the program
+            # Mode completed!
+            # maybe set timestamp to infinity and only send out the message 
+            # maybe light up funny
+            pass
         resetFlags(node)
         if DEBUG:
            debugIt(node) 

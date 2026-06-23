@@ -14,7 +14,7 @@ import networkx as nx
 # PARAMETERS
 # =========================
 
-NUM_NODES = 500
+NUM_NODES = 1000
 TIME_STEPS = 500
 NUM_INPUTS = 10
 RUNS = 100

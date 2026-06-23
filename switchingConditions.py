@@ -84,10 +84,8 @@ class Node:
 
     def processInitMsg(self, senderTimestamp, senderMode, senderROOT):    # reacts to INIT
         # IDLE > BUSY > ROOT > MODE > TIMESTAMPS
-        self.timestamp += 1
         if (self.IDLE):
             self.INITDONE = True
-            self.ROOT = self.becomeRoot() 
             return RESULT_COMMUNICATIONACCEPTED
         else:
             if self.BUSY:
@@ -105,7 +103,6 @@ class Node:
                     return RESULT_COMMUNICATIONACCEPTED
                 else:
                     if self.mode != senderMode:
-                        self.ROOT = self.becomeRoot() 
                         self.BUSY = False
                         self.IDLE = not self.BUSY
                         return RESULT_MODE          # err.modeIsDifferent()
@@ -114,13 +111,11 @@ class Node:
                             self.INITDONE = True
                             return RESULT_COMMUNICATIONACCEPTED
                         elif senderTimestamp < self.timestamp:
-                            self.ROOT = self.becomeRoot() 
                             self.BUSY = False
                             self.IDLE = not self.BUSY
                             return RESULT_TIMESTAMP  # err.olderTimestamp()
                         else:
                             print(f"[UPDATE] Communicating nodes have the same timestamps and modes, so no exchange")
-                            self.ROOT = self.becomeRoot() 
                             self.BUSY = False
                             self.IDLE = not self.BUSY
                             return RESULT_EQUAL  
